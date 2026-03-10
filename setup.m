@@ -12,8 +12,6 @@ set(groot, 'DefaultFigureWindowStyle', 'docked');
 % set(groot, 'DefaultFigureWindowStyle', 'normal');
 % set(groot, 'DefaultFigureWindowStyle', 'modal');
 
-
-%
 set(groot, 'DefaultTextInterpreter', 'latex');
 set(groot, 'defaultAxesTickLabelInterpreter','latex'); 
 set(groot, 'defaultLegendInterpreter','latex');

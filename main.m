@@ -227,9 +227,16 @@ end
 log = reconstruct_logs(p,t,x);
 
 % ============================================================
-% Currents anc low pass cap voltage
+% Fig 1: Currents and PCC Voltage
 % ============================================================
-fig1 = figure(1); clf(fig1);
+fig1 = findobj('Type','figure','Number',1);
+if isempty(fig1)
+    fig1 = figure(1);
+    set(fig1,'WindowStyle','docked');
+else
+    clf(fig1);
+end
+set(0,'CurrentFigure',fig1);
 
 subplot(3,1,1)
 plot(t,x(state_idx.i1d,:),t,x(state_idx.i1q,:),'LineWidth',1)
@@ -252,11 +259,17 @@ grid on
 title('PCC Voltage')
 axis padded
 
-
 % ============================================================
-% Power plots
+% Fig 2: Active and Reactive Power
 % ============================================================
-fig2 = figure(2); clf(fig2);
+fig2 = findobj('Type','figure','Number',2);
+if isempty(fig2)
+    fig2 = figure(2);
+    set(fig2,'WindowStyle','docked');
+else
+    clf(fig2);
+end
+set(0,'CurrentFigure',fig2);
 
 subplot(2,1,1)
 plot(t,log.P_conv,t,log.P_grid,t,log.P_PCC,'LineWidth',1)
@@ -273,9 +286,16 @@ title('Reactive Power')
 axis padded
 
 % ============================================================
-% Syncronization states
+% Fig 3: Synchronization States
 % ============================================================
-fig3 = figure(3); clf(fig3);
+fig3 = findobj('Type','figure','Number',3);
+if isempty(fig3)
+    fig3 = figure(3);
+    set(fig3,'WindowStyle','docked');
+else
+    clf(fig3);
+end
+set(0,'CurrentFigure',fig3);
 
 subplot(2,1,1)
 plot(t,log.delta_g_shifted,'LineWidth',1.2)
@@ -294,19 +314,25 @@ hold off
 legend('$\omega_g$','$\omega_{conv}$','Location','best')
 grid on
 axis padded
-
 title('Synchronization States')
 xlabel('Time (s)')
+
 % ============================================================
-% V_PPC and Vrefd
+% Fig 4: Vref and PCC Voltage
 % ============================================================
-fig4 = figure(4); clf(fig4);
+fig4 = findobj('Type','figure','Number',4);
+if isempty(fig4)
+    fig4 = figure(4);
+    set(fig4,'WindowStyle','docked');
+else
+    clf(fig4);
+end
+set(0,'CurrentFigure',fig4);
 
 plot(t,log.Vrefd,'LineWidth',1.2)
 hold on
 plot(t,log.V_PCC_mag,'--','LineWidth',1)
 hold off
-
 grid on
 title('Voltage Reference and PCC Voltage')
 xlabel('Time (s)')
@@ -315,9 +341,16 @@ legend('$V_{ref,d}$','$V_{PCC}$','Location','best')
 axis padded
 
 % ============================================================
-% Iref magnitude
+% Fig 5: Reference Current Magnitude
 % ============================================================
-fig5 = figure(5); clf(fig5);
+fig5 = findobj('Type','figure','Number',5);
+if isempty(fig5)
+    fig5 = figure(5);
+    set(fig5,'WindowStyle','docked');
+else
+    clf(fig5);
+end
+set(0,'CurrentFigure',fig5);
 
 plot(t,log.Iref_mag_lim,'LineWidth',1.2)
 grid on
@@ -326,11 +359,18 @@ xlabel('Time (s)')
 ylabel('$I_{ref}$ (pu)')
 axis padded
 
+% ============================================================
+% Fig 6: Current Magnitudes
+% ============================================================
+fig6 = findobj('Type','figure','Number',6);
+if isempty(fig6)
+    fig6 = figure(6);
+    set(fig6,'WindowStyle','docked');
+else
+    clf(fig6);
+end
+set(0,'CurrentFigure',fig6);
 
-% ============================================================
-% Current magnitudes
-% ============================================================
-fig_curr_mag = figure(6); clf(fig_curr_mag);
 plot(t,log.i1_mag,'LineWidth',1.2)
 hold on
 plot(t,log.i2_mag,'LineWidth',1.2)
@@ -350,6 +390,7 @@ fig2Name = outputFolder + "\Active_and_Reactive_Power" + fig_type;
 fig3Name = outputFolder + "\Synchronization_States" + fig_type;
 fig4Name = outputFolder + "\Vref_and_Capacitor_Voltage" + fig_type;
 fig5Name = outputFolder + "\Iref_Magnitude" + fig_type;
+fig6Name = outputFolder + "\I1_and_I2_Magnitude" + fig_type;
 
 if export
     exportLight(fig1,fig1Name)
@@ -357,4 +398,31 @@ if export
     exportLight(fig3,fig3Name)
     exportLight(fig4,fig4Name)
     exportLight(fig5,fig5Name)
+    exportLight(fig6,fig6Name)
 end
+
+if export
+    % update all legend locations to specific locations (individual per figure) and export
+    locs = {'west','east','east','southeast','southeast','southeast'}; % set desired locations per figure
+    figs = {fig1,fig2,fig3,fig4,fig5,fig6};
+    names = {fig1Name,fig2Name,fig3Name,fig4Name,fig5Name,fig6Name};
+
+    for k = 1:numel(figs)
+        fig = figs{k};
+        if isvalid(fig)
+            axs = findall(fig,'Type','axes');
+            for a = 1:numel(axs)
+                lg = legend(axs(a));
+                if ~isempty(lg) && isvalid(lg)
+                    lg.Location = locs{k};
+                end
+            end
+        end
+    end
+
+    % export all
+    for k = 1:numel(figs)
+        exportLight(figs{k}, names{k});
+    end
+end
+

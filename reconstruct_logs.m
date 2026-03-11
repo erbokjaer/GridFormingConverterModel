@@ -29,14 +29,21 @@ vt2q  = x(p.state_idx.vt2q,:);
 xi_vd = x(p.state_idx.xi_vd,:);
 xi_vq = x(p.state_idx.xi_vq,:);
 
-V_ref = arrayfun(p.V_ref,t);
-Q_ref = arrayfun(p.Q_ref,t);
+% V_ref = arrayfun(p.V_ref,t);
+% Q_ref = arrayfun(p.Q_ref,t);
+% vg_mag       = arrayfun(p.vg_mag,t);
+% vg_phase_rad = arrayfun(p.vg_phase_rad,t);
+
+vg_mag = fault_profile(t,p.Vg);
+vg_phase_rad = ramp_signal(t, p.Phg.t_start, p.Phg.t_dur, deg2rad(p.Phg.y0), deg2rad(p.Phg.y1));
+V_ref = ramp_signal(t, p.V.t_start,  p.V.t_dur,  p.V.y0,  p.V.y1);
+Q_ref = ramp_signal(t, p.Q.t_start,  p.Q.t_dur,  p.Q.y0,  p.Q.y1);
+
 
 % ============================================================
 % Grid voltage events
 % ============================================================
-vg_mag       = arrayfun(p.vg_mag,t);
-vg_phase_rad = arrayfun(p.vg_phase_rad,t);
+
 
 vg_d = vg_mag .* cos(vg_phase_rad);
 vg_q = vg_mag .* sin(vg_phase_rad);
@@ -88,8 +95,8 @@ log.Vrefd = p.Kp_q .* err_q + p.Ki_q .* xi_Q;
 % dVd = log.Vrefd - vd_c;
 % dVq = -vq_c;
 % 
-% Id_ref_raw = (dVd.*p.R_v_tot + dVq.*p.X_v_tot)/p.Z_v2;
-% Iq_ref_raw = (dVq.*p.R_v_tot - dVd.*p.X_v_tot)/p.Z_v2;
+% Id_ref_raw = (dVd.*p.R_v + dVq.*p.X_v)/p.Z_v2;
+% Iq_ref_raw = (dVq.*p.R_v - dVd.*p.X_v)/p.Z_v2;
 % 
 % Idq_mag = sqrt(Id_ref_raw.^2 + Iq_ref_raw.^2);
 % 
@@ -108,8 +115,8 @@ d_vv_d = p.Kpv.*e_vd + p.Kiv.*xi_vd;
 d_vv_q = p.Kpv.*e_vq + p.Kiv.*xi_vq;
 
 
-Id_ref = (d_vv_d*p.R_v_tot + d_vv_q*p.X_v_tot)./p.Z_v2;
-Iq_ref = (d_vv_q*p.R_v_tot - d_vv_d*p.X_v_tot)./p.Z_v2;
+Id_ref = (d_vv_d*p.R_v + d_vv_q*p.X_v)./p.Z_v2;
+Iq_ref = (d_vv_q*p.R_v - d_vv_d*p.X_v)./p.Z_v2;
 
 % ============================================================
 % Current limit
@@ -153,6 +160,7 @@ Econv_d = c.*Econv_d_c - s.*Econv_q_c;
 Econv_q = s.*Econv_d_c + c.*Econv_q_c;
 
 log.Econv = [Econv_d; Econv_q];
+log.Econv_mag = sqrt(Econv_d.^2 + Econv_q.^2);
 
 % ============================================================
 % Power calculations

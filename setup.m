@@ -1,5 +1,5 @@
 clear
-
+tic
 % Add plotFunctions directory to the MATLAB path
 addpath('plotFunctions');
 addpath('helperFunctions')
@@ -12,9 +12,9 @@ set(groot, 'DefaultFigureWindowStyle', 'docked');
 % set(groot, 'DefaultFigureWindowStyle', 'normal');
 % set(groot, 'DefaultFigureWindowStyle', 'modal');
 
-set(groot, 'DefaultTextInterpreter', 'latex');
-set(groot, 'defaultAxesTickLabelInterpreter','latex'); 
-set(groot, 'defaultLegendInterpreter','latex');
+
+set(groot, 'DefaultFigureGraphicsSmoothing', 'off'); % Disables anti-aliasing (huge speedup)
+% set(groot, 'DefaultLineAlignVertexCenters', 'on');   % Optimization for line drawing
 
 
 % Create an output folder if it does not exist
@@ -27,7 +27,17 @@ end
 
 fig_type = ".png";
 
-%
+if export
+    interp = 'latex';
+else
+    interp = 'tex'; % Much faster
+end
+
+set(groot, 'DefaultTextInterpreter', interp);
+set(groot, 'defaultAxesTickLabelInterpreter',interp); 
+set(groot, 'defaultLegendInterpreter',interp);
+
+
 set(groot, ...
     'DefaultAxesFontSize', 12, ...      
     'DefaultTextFontSize', 12, ...      

@@ -3,11 +3,23 @@
 % ============================================================
 run setup.m
 
-use_last_end_x_as_init = 0;
+use_last_end_x_as_init = 1;
 save_last_end_x_as_init = 0;
 
 init_zero = 0;
 find_steady_state = 1;
+
+% update_plots = [
+%     1; % 1
+%     0; % 2
+%     1; % 3
+%     0; % 4
+%     0; % 5
+%     0; % 6
+%     0; % 7
+% ];
+
+update_plots = 1*ones(1,7);
 
 % ============================================================
 % Simulation horizon
@@ -20,7 +32,7 @@ tspan = [0 t_end];
 % ============================================================
 % Grid voltage 
 Vg.y_prefault  = 1.0;    % normal voltage
-Vg.y_fault     = 1.;    % voltage during fault
+Vg.y_fault     = 1;    % voltage during fault
 Vg.y_postfault = 1.0;    % voltage after clearing
 
 Vg.t_fault     = 50;      % fault start
@@ -36,8 +48,8 @@ Phg.y0      = 0;     % degrees
 Phg.y1      = 0;     % degrees
 
 % Voltage reference
-V.t_start = 0;
-V.t_dur   = 0;
+V.t_start = 40;
+V.t_dur   = 10;
 V.y0      = 1.00;
 V.y1      = 1.00;
 
@@ -103,9 +115,9 @@ Ki_q = K_vq/tau_q_i;
 % ============================================================
 % Virtual Admittance
 % ============================================================
-R_v_tot = 0.15;
-X_v_tot = 0.03;
-Z_v2 = sqrt(R_v_tot^2 + X_v_tot^2);
+R_v = 0.15;
+X_v = 0.03;
+Z_v2 = sqrt(R_v^2 + X_v^2);
 
 % Virtual impedance PI gains
 Kpv = 1;
@@ -134,14 +146,14 @@ state_idx = struct( ...
     'i2d', 3, 'i2q', 4, ...         % Grid currents
     'vcd', 5, 'vcq', 6, ...         % Capacitor voltage
     'delta_g', 7, 'omega_g', 8, ... % Grid generator angle & speed
-    'delta_c', 9, 'omega_c', 10, ...% Converter angle & speed
-    'xi_Q', 11, ...                  % Reactive power integrator
-    'xi_id', 12, 'xi_iq', 13, ...   % Current controller integrators
-    'it1d', 14, 'it1q', 15, ...     % Trap filter 1
-    'vt1d', 16, 'vt1q', 17, ...
-    'it2d', 18, 'it2q', 19, ...     % Trap filter 2
-    'vt2d', 20, 'vt2q', 21, ...
-    'xi_vd', 22, 'xi_vq', 23 ...    % Virtual impedance integrators
+    'it1d', 9, 'it1q', 10, ...      % Trap filter 1
+    'vt1d', 11, 'vt1q', 12, ...
+    'it2d', 13, 'it2q', 14, ...     % Trap filter 2
+    'vt2d', 15, 'vt2q', 16, ...
+    'delta_c', 17,'omega_c', 18,... % Converter angle & speed
+    'xi_Q', 19, ...                 % Reactive power integrator
+    'xi_vd', 20, 'xi_vq', 21, ...   % Virtual impedance integrators
+    'xi_id', 22, 'xi_iq', 23 ...    % Current controller integrators
 );
 
 n_states = numel(fieldnames(state_idx));
@@ -200,10 +212,8 @@ end
 % ============================================================
 % Solver
 % ============================================================
-opts = odeset( ...
-    'RelTol',1e-6, ...
-    'AbsTol',1e-8, ...
-    'MaxStep',1e-2);
+% opts = odeset('RelTol',1e-6,'AbsTol',1e-8,'MaxStep',1e-2);
+opts = odeset('RelTol',1e-4, 'AbsTol',1e-8, 'MaxStep',1e-1);
 
 % [t,x] = ode15s(@(t,x) system_ode(t,x,p), tspan, x0, opts);
 [t,x] = ode23t(@(t,x) system_ode(t,x,p), tspan, x0, opts);
@@ -229,159 +239,201 @@ log = reconstruct_logs(p,t,x);
 % ============================================================
 % Fig 1: Currents and PCC Voltage
 % ============================================================
-fig1 = findobj('Type','figure','Number',1);
-if isempty(fig1)
-    fig1 = figure(1);
-    set(fig1,'WindowStyle','docked');
-else
-    clf(fig1);
+if update_plots(1)
+    fig1 = findobj('Type','figure','Number',1);
+    if isempty(fig1)
+        fig1 = figure(1);
+        set(fig1,'WindowStyle','docked');
+    else
+        clf(fig1);
+    end
+    set(0,'CurrentFigure',fig1);
+    
+    subplot(3,1,1)
+    plot(t,x(state_idx.i1d,:),t,x(state_idx.i1q,:),'LineWidth',1)
+    legend('$i_{1d}$','$i_{1q}$','Location','best')
+    grid on
+    title('Converter Currents')
+    axis padded
+    
+    subplot(3,1,2)
+    plot(t,x(state_idx.i2d,:),t,x(state_idx.i2q,:),'LineWidth',1)
+    legend('$i_{2d}$','$i_{2q}$','Location','best')
+    grid on
+    title('Grid Side Currents')
+    axis padded
+    
+    subplot(3,1,3)
+    plot(t,log.V_PCC(1,:),t,log.V_PCC(2,:),'LineWidth',1)
+    legend('$v_{d}$','$v_{q}$','Location','best')
+    grid on
+    title('PCC Voltage')
+    axis padded
 end
-set(0,'CurrentFigure',fig1);
-
-subplot(3,1,1)
-plot(t,x(state_idx.i1d,:),t,x(state_idx.i1q,:),'LineWidth',1)
-legend('$i_{1d}$','$i_{1q}$','Location','best')
-grid on
-title('Converter Currents')
-axis padded
-
-subplot(3,1,2)
-plot(t,x(state_idx.i2d,:),t,x(state_idx.i2q,:),'LineWidth',1)
-legend('$i_{2d}$','$i_{2q}$','Location','best')
-grid on
-title('Grid Side Currents')
-axis padded
-
-subplot(3,1,3)
-plot(t,log.V_PCC(1,:),t,log.V_PCC(2,:),'LineWidth',1)
-legend('$v_{d}$','$v_{q}$','Location','best')
-grid on
-title('PCC Voltage')
-axis padded
 
 % ============================================================
 % Fig 2: Active and Reactive Power
 % ============================================================
-fig2 = findobj('Type','figure','Number',2);
-if isempty(fig2)
-    fig2 = figure(2);
-    set(fig2,'WindowStyle','docked');
-else
-    clf(fig2);
+if update_plots(2)
+    fig2 = findobj('Type','figure','Number',2);
+    if isempty(fig2)
+        fig2 = figure(2);
+        set(fig2,'WindowStyle','docked');
+    else
+        clf(fig2);
+    end
+    set(0,'CurrentFigure',fig2);
+    
+    subplot(2,1,1)
+    plot(t,log.P_conv,t,log.P_grid,t,log.P_PCC,'LineWidth',1)
+    legend('$P_{conv}$','$P_{grid}$','$P_{PCC}$','Location','best')
+    grid on
+    title('Active Power')
+    axis padded
+    
+    subplot(2,1,2)
+    plot(t,log.Q_conv,t,log.Q_grid,t,log.Q_PCC,'LineWidth',1)
+    legend('$Q_{conv}$','$Q_{grid}$','$Q_{PCC}$','Location','best')
+    grid on
+    title('Reactive Power')
+    axis padded
 end
-set(0,'CurrentFigure',fig2);
-
-subplot(2,1,1)
-plot(t,log.P_conv,t,log.P_grid,t,log.P_PCC,'LineWidth',1)
-legend('$P_{conv}$','$P_{grid}$','$P_{PCC}$','Location','best')
-grid on
-title('Active Power')
-axis padded
-
-subplot(2,1,2)
-plot(t,log.Q_conv,t,log.Q_grid,t,log.Q_PCC,'LineWidth',1)
-legend('$Q_{conv}$','$Q_{grid}$','$Q_{PCC}$','Location','best')
-grid on
-title('Reactive Power')
-axis padded
 
 % ============================================================
 % Fig 3: Synchronization States
 % ============================================================
-fig3 = findobj('Type','figure','Number',3);
-if isempty(fig3)
-    fig3 = figure(3);
-    set(fig3,'WindowStyle','docked');
-else
-    clf(fig3);
+if update_plots(3)
+    fig3 = findobj('Type','figure','Number',3);
+    if isempty(fig3)
+        fig3 = figure(3);
+        set(fig3,'WindowStyle','docked');
+    else
+        clf(fig3);
+    end
+    set(0,'CurrentFigure',fig3);
+    
+    subplot(2,1,1)
+    plot(t,log.delta_g_shifted,'LineWidth',1.2)
+    hold on
+    plot(t,log.delta_conv,'LineWidth',1.2)
+    hold off
+    legend('$\delta_g$','$\delta_{conv}$','Location','best')
+    grid on
+    axis padded
+    
+    subplot(2,1,2)
+    plot(t,log.omega_g,'LineWidth',1.2)
+    hold on
+    plot(t,log.omega_conv,'LineWidth',1.2)
+    hold off
+    legend('$\omega_g$','$\omega_{conv}$','Location','best')
+    grid on
+    axis padded
+    title('Synchronization States')
+    xlabel('Time (s)')
 end
-set(0,'CurrentFigure',fig3);
-
-subplot(2,1,1)
-plot(t,log.delta_g_shifted,'LineWidth',1.2)
-hold on
-plot(t,log.delta_conv,'LineWidth',1.2)
-hold off
-legend('$\delta_g$','$\delta_{conv}$','Location','best')
-grid on
-axis padded
-
-subplot(2,1,2)
-plot(t,log.omega_g,'LineWidth',1.2)
-hold on
-plot(t,log.omega_conv,'LineWidth',1.2)
-hold off
-legend('$\omega_g$','$\omega_{conv}$','Location','best')
-grid on
-axis padded
-title('Synchronization States')
-xlabel('Time (s)')
 
 % ============================================================
 % Fig 4: Vref and PCC Voltage
 % ============================================================
-fig4 = findobj('Type','figure','Number',4);
-if isempty(fig4)
-    fig4 = figure(4);
-    set(fig4,'WindowStyle','docked');
-else
-    clf(fig4);
+if update_plots(4)
+    fig4 = findobj('Type','figure','Number',4);
+    if isempty(fig4)
+        fig4 = figure(4);
+        set(fig4,'WindowStyle','docked');
+    else
+        clf(fig4);
+    end
+    set(0,'CurrentFigure',fig4);
+    
+    plot(t,log.Vrefd,'LineWidth',1.2)
+    hold on
+    plot(t,log.V_PCC_mag,'--','LineWidth',1)
+    hold off
+    grid on
+    title('Voltage Reference and PCC Voltage')
+    xlabel('Time (s)')
+    ylabel('Voltage (pu)')
+    legend('$V_{ref,d}$','$V_{PCC}$','Location','best')
+    axis padded
 end
-set(0,'CurrentFigure',fig4);
-
-plot(t,log.Vrefd,'LineWidth',1.2)
-hold on
-plot(t,log.V_PCC_mag,'--','LineWidth',1)
-hold off
-grid on
-title('Voltage Reference and PCC Voltage')
-xlabel('Time (s)')
-ylabel('Voltage (pu)')
-legend('$V_{ref,d}$','$V_{PCC}$','Location','best')
-axis padded
 
 % ============================================================
 % Fig 5: Reference Current Magnitude
 % ============================================================
-fig5 = findobj('Type','figure','Number',5);
-if isempty(fig5)
-    fig5 = figure(5);
-    set(fig5,'WindowStyle','docked');
-else
-    clf(fig5);
+if update_plots(5)
+    fig5 = findobj('Type','figure','Number',5);
+    if isempty(fig5)
+        fig5 = figure(5);
+        set(fig5,'WindowStyle','docked');
+    else
+        clf(fig5);
+    end
+    set(0,'CurrentFigure',fig5);
+    
+    plot(t,log.Iref_mag_lim,'LineWidth',1.2)
+    grid on
+    title('Reference Current Magnitude')
+    xlabel('Time (s)')
+    ylabel('$I_{ref}$ (pu)')
+    axis padded
 end
-set(0,'CurrentFigure',fig5);
-
-plot(t,log.Iref_mag_lim,'LineWidth',1.2)
-grid on
-title('Reference Current Magnitude')
-xlabel('Time (s)')
-ylabel('$I_{ref}$ (pu)')
-axis padded
 
 % ============================================================
 % Fig 6: Current Magnitudes
 % ============================================================
-fig6 = findobj('Type','figure','Number',6);
-if isempty(fig6)
-    fig6 = figure(6);
-    set(fig6,'WindowStyle','docked');
-else
-    clf(fig6);
+if update_plots(6)
+    fig6 = findobj('Type','figure','Number',6);
+    if isempty(fig6)
+        fig6 = figure(6);
+        set(fig6,'WindowStyle','docked');
+    else
+        clf(fig6);
+    end
+    set(0,'CurrentFigure',fig6);
+    
+    plot(t,log.i1_mag,'LineWidth',1.2)
+    hold on
+    plot(t,log.i2_mag,'LineWidth',1.2)
+    hold off
+    grid on
+    title('Current Magnitudes')
+    xlabel('Time (s)')
+    ylabel('Current (pu)')
+    legend('$|i_1|$','$|i_2|$','Location','best')
+    axis padded
 end
-set(0,'CurrentFigure',fig6);
 
-plot(t,log.i1_mag,'LineWidth',1.2)
-hold on
-plot(t,log.i2_mag,'LineWidth',1.2)
-hold off
-grid on
-title('Current Magnitudes')
-xlabel('Time (s)')
-ylabel('Current (pu)')
-legend('$|i_1|$','$|i_2|$','Location','best')
-axis padded
-
+% ============================================================
+% Fig 7: Converter Internal Voltage (dq and magnitude)
+% ============================================================
+if update_plots(7)
+    fig7 = findobj('Type','figure','Number',7);
+    if isempty(fig7)
+        fig7 = figure(7);
+        set(fig7,'WindowStyle','docked');
+    else
+        clf(fig7);
+    end
+    set(0,'CurrentFigure',fig7);
+    
+    subplot(2,1,1)
+    plot(t, log.Econv(1,:), t, log.Econv(2,:), 'LineWidth', 1.2)
+    legend('$E_{conv,d}$','$E_{conv,q}$','Location','best')
+    grid on
+    title('Converter Internal Voltage (d/q)')
+    xlabel('Time (s)')
+    axis padded
+    
+    subplot(2,1,2)
+    plot(t, log.Econv_mag, 'LineWidth', 1.2)
+    grid on
+    title('Converter Internal Voltage Magnitude')
+    xlabel('Time (s)')
+    ylabel('Voltage (pu)')
+    legend('$|E_{conv}|$','Location','best')
+    axis padded
+end
 % ============================================================
 % Export Figures
 % ============================================================
@@ -391,6 +443,7 @@ fig3Name = outputFolder + "\Synchronization_States" + fig_type;
 fig4Name = outputFolder + "\Vref_and_Capacitor_Voltage" + fig_type;
 fig5Name = outputFolder + "\Iref_Magnitude" + fig_type;
 fig6Name = outputFolder + "\I1_and_I2_Magnitude" + fig_type;
+fig7Name = outputFolder + "\Econv_and_EconvMag" + fig_type;
 
 if export
     exportLight(fig1,fig1Name)
@@ -399,6 +452,7 @@ if export
     exportLight(fig4,fig4Name)
     exportLight(fig5,fig5Name)
     exportLight(fig6,fig6Name)
+    exportLight(fig7, fig7Name);
 end
 
 if export
@@ -426,3 +480,4 @@ if export
     end
 end
 
+toc

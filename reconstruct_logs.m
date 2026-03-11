@@ -92,22 +92,6 @@ log.Vrefd = p.Kp_q .* err_q + p.Ki_q .* xi_Q;
 % ============================================================
 % Virtual impedance current reference
 % ============================================================
-% dVd = log.Vrefd - vd_c;
-% dVq = -vq_c;
-% 
-% Id_ref_raw = (dVd.*p.R_v + dVq.*p.X_v)/p.Z_v2;
-% Iq_ref_raw = (dVq.*p.R_v - dVd.*p.X_v)/p.Z_v2;
-% 
-% Idq_mag = sqrt(Id_ref_raw.^2 + Iq_ref_raw.^2);
-% 
-% scale = min(1, p.I_max ./ max(Idq_mag,1e-9));
-% 
-% Id_ref = Id_ref_raw .* scale;
-% Iq_ref = Iq_ref_raw .* scale;
-% 
-% log.Iref = [Id_ref; Iq_ref];
-% log.Iref_mag = sqrt(Id_ref.^2 + Iq_ref.^2);
-
 e_vd = log.Vrefd - vd_c;
 e_vq = - vq_c;  
 

@@ -222,11 +222,50 @@ end
 opts = odeset('RelTol',1e-4, 'AbsTol',1e-8, 'MaxStep',1e-1);
 
 % [t,x] = ode15s(@(t,x) system_ode(t,x,p), tspan, x0, opts);
-[t,x] = ode23t(@(t,x) system_ode(t,x,p), tspan, x0, opts);
+% [t,x] = ode23t(@(t,x) system_ode(t,x,p), tspan, x0, opts);
 % [t,x] = ode45(@(t,x) system_ode(t,x,p), tspan, x0, opts);
 
-x = x.';
-t = t.';
+% Basic Fixed-Step Euler
+dt = 0.0001;
+t = 99.9:dt:100.1;
+x = zeros(size(x0,1), length(t));
+% Initialize first state column from given vector last_x
+last_x = [ ...
+    0.8389;
+    0.4685;
+    0.8463;
+    0.4502;
+    0.9373;
+    0.3753;
+    2.1348;
+    1.0127;
+   -0.0017;
+    0.0040;
+    0.9349;
+    0.3825;
+   -0.0008;
+    0.0020;
+    0.9346;
+    0.3824;
+    0.3886;
+    1.0005;
+    0.0505;
+    0.2281;
+    0.0751;
+    0.0010;
+    0.0002 ];
+
+x0 = last_x;
+x(:,1) = x0;
+
+
+for k = 1:length(t)-1
+    % Simple Explicit Euler: x_next = x_now + dt * f(t, x)
+    x(:,k+1) = x(:,k) + dt * system_ode(t(k), x(:,k), p);
+end
+
+% x = x.';
+% t = t.';
 
 % ============================================================
 % Save checkpoint

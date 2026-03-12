@@ -13,7 +13,7 @@ if t < t_fault
 
     y = y_pre;
 
-elseif t <= t_fault + t_apply
+elseif t <= t_fault + t_apply && not(t_apply == 0)
 
     y = y_pre + (y_fault - y_pre) * (t - t_fault)/t_apply;
 
@@ -21,7 +21,7 @@ elseif t < t_clear
 
     y = y_fault;
 
-elseif t <= t_clear + t_recover
+elseif t <= t_clear + t_recover && not(t_recover == 0)
 
     y = y_fault + (y_post - y_fault) * (t - t_clear)/t_recover;
 

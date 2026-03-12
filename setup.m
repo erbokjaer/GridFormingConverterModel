@@ -13,9 +13,7 @@ set(groot, 'DefaultFigureWindowStyle', 'docked');
 % set(groot, 'DefaultFigureWindowStyle', 'modal');
 
 
-set(groot, 'DefaultFigureGraphicsSmoothing', 'off'); % Disables anti-aliasing (huge speedup)
-% set(groot, 'DefaultLineAlignVertexCenters', 'on');   % Optimization for line drawing
-
+set(groot, 'DefaultFigureGraphicsSmoothing', 'off'); % Disables anti-aliasing
 
 % Create an output folder if it does not exist
 export = 0;

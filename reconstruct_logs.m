@@ -11,7 +11,7 @@ i2d   = x(p.state_idx.i2d,:);
 i2q   = x(p.state_idx.i2q,:);
 vcd   = x(p.state_idx.vcd,:);
 vcq   = x(p.state_idx.vcq,:);
-delta_g = x(p.state_idx.delta_g,:);
+% delta_g = x(p.state_idx.delta_g,:);
 omega_g = x(p.state_idx.omega_g,:);
 delta_conv = x(p.state_idx.delta_c,:);
 omega_conv = x(p.state_idx.omega_c,:);
@@ -29,16 +29,11 @@ vt2q  = x(p.state_idx.vt2q,:);
 xi_vd = x(p.state_idx.xi_vd,:);
 xi_vq = x(p.state_idx.xi_vq,:);
 
-% V_ref = arrayfun(p.V_ref,t);
-% Q_ref = arrayfun(p.Q_ref,t);
-% vg_mag       = arrayfun(p.vg_mag,t);
-% vg_phase_rad = arrayfun(p.vg_phase_rad,t);
-
-vg_mag = fault_profile(t,p.Vg);
-vg_phase_rad = ramp_signal(t, p.Phg.t_start, p.Phg.t_dur, deg2rad(p.Phg.y0), deg2rad(p.Phg.y1));
-V_ref = ramp_signal(t, p.V.t_start,  p.V.t_dur,  p.V.y0,  p.V.y1);
-Q_ref = ramp_signal(t, p.Q.t_start,  p.Q.t_dur,  p.Q.y0,  p.Q.y1);
-
+V_ref = arrayfun(p.V_ref,t);
+Q_ref = arrayfun(p.Q_ref,t);
+vg_mag       = arrayfun(p.vg_mag,t);
+vg_phase_rad = arrayfun(p.vg_phase_rad,t);
+delta_g = x(p.state_idx.delta_g,:) + vg_phase_rad;
 
 % ============================================================
 % Grid voltage events

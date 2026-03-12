@@ -24,7 +24,7 @@ update_plots = 1*ones(1,7);
 % ============================================================
 % Simulation horizon
 % ============================================================
-t_end = 100;
+t_end = 300;
 tspan = [0 t_end];
 
 % ============================================================
@@ -32,20 +32,20 @@ tspan = [0 t_end];
 % ============================================================
 % Grid voltage 
 Vg.y_prefault  = 1.0;    % normal voltage
-Vg.y_fault     = 1;    % voltage during fault
+Vg.y_fault     = 0.8;    % voltage during fault
 Vg.y_postfault = 1.0;    % voltage after clearing
 
-Vg.t_fault     = 50;      % fault start
-Vg.t_apply     = 0.0;   % ramp duration into fault
+Vg.t_fault     = 100;      % fault start
+Vg.t_apply     = 0.;   % ramp duration into fault
 
-Vg.t_clear     = 51;   % clearing time
-Vg.t_recover   = 0.0;   % ramp duration back
+Vg.t_clear     = 102.50;   % clearing time
+Vg.t_recover   = 0.;   % ramp duration back
 
 % Grid phase 
-Phg.t_start = 0;
+Phg.t_start = 150;
 Phg.t_dur   = 0;
 Phg.y0      = 0;     % degrees
-Phg.y1      = 0;     % degrees
+Phg.y1      = 30;     % degrees
 
 % Voltage reference
 V.t_start = 40;
@@ -62,13 +62,13 @@ Q.y1      = -0.;
 % Active power reference
 P.t_start = 10;
 P.t_dur   = 0;
-P.y0      = 0;
+P.y0      = 0.;
 P.y1      = 1;
 
 % Mechanical power
 Pm.t_start = 10;
 Pm.t_dur   = 0;
-Pm.y0      = 0;
+Pm.y0      = 0.;
 Pm.y1      = 1.1;
 
 vg_mag = @(t) fault_profile(t,Vg);
@@ -180,33 +180,39 @@ end
 % ============================================================
 % Find steady-state initial condition (optional)
 % ============================================================
-if find_steady_state && not(use_last_end_x_as_init)
+res = inf;
+checkpoint_file = 'init_data/system_ode_states.mat';
+if use_last_end_x_as_init && exist(checkpoint_file,'file')
+    load(checkpoint_file);
+    x0 = last_x;
+    res = norm(system_ode(0, x0, p));
+end
+
+
+if find_steady_state && (res > 1e-7)
     f_ss = @(x) system_ode(0, x, p);
     opts = optimoptions('lsqnonlin', ...
-        'Display','off', ...           % can be 'none'
-        'FunctionTolerance',1e-10, ...
+        'Display','iter', ...           
+        'FunctionTolerance',1e-12, ...
         'StepTolerance',1e-12, ...
-        'OptimalityTolerance',1e-10, ...
-        'MaxFunctionEvaluations',1e5);
+        'OptimalityTolerance',1e-12, ...
+        'MaxFunctionEvaluations',1e6);
     try
         x_ss = lsqnonlin(@(x) f_ss(x), x0, [], [],opts);
         res = norm(f_ss(x_ss));
         if res < 1e-7
             x0 = x_ss;
         else
-            warning('Steady-state solver did not converge to sufficient tolerance (residual = %g). Using original x0.', res);
+            x0 = x_ss;
+            warning('Steady-state solver did not converge to sufficient tolerance (residual = %g).', res);
         end
     catch ME
         warning(['Steady-state solver failed: ', ME.message, '. Using original x0.']);
     end
 end
 
-checkpoint_file = 'init_data/system_ode_states.mat';
 
-if use_last_end_x_as_init && exist(checkpoint_file,'file')
-    load(checkpoint_file);
-    x0 = last_x;
-end
+
 
 
 % ============================================================
@@ -456,8 +462,8 @@ if export
 end
 
 if export
-    % update all legend locations to specific locations (individual per figure) and export
-    locs = {'west','east','east','southeast','southeast','southeast'}; % set desired locations per figure
+    % update all legend locations to specific locations (individual per figure) 
+    locs = {'west','east','east','southeast','southeast','southeast'}; 
     figs = {fig1,fig2,fig3,fig4,fig5,fig6};
     names = {fig1Name,fig2Name,fig3Name,fig4Name,fig5Name,fig6Name};
 

@@ -1,4 +1,4 @@
-function dx = system_ode(t,x,p)
+function dx = system_ode_4(t,x,p)
 
 % ============================================================
 % Unpack states
@@ -34,6 +34,8 @@ xi_vq = x(p.state_idx.xi_vq);
 vg_mag       = p.vg_mag(t);
 vg_phase_rad = p.vg_phase_rad(t);
 
+% vg_d = vg_mag * cos(vg_phase_rad);
+% vg_q = vg_mag * sin(vg_phase_rad);
 vg_d = vg_mag * cos(delta_g + vg_phase_rad);
 vg_q = vg_mag * sin(delta_g + vg_phase_rad);
 
@@ -49,23 +51,13 @@ v_PCC_q = vcq + p.Rlp*ilpq;
 % ============================================================
 % dq transform
 % ============================================================
-c = cos(delta_c);
-s = sin(delta_c);
 
-i1d_c = c*i1d + s*i1q;
-i1q_c = -s*i1d + c*i1q;
-
-v_PCC_d_c = c*v_PCC_d + s*v_PCC_q;
-v_PCC_q_c = -s*v_PCC_d + c*v_PCC_q;
-
-i2d_c = c*i2d + s*i2q;
-i2q_c = -s*i2d + c*i2q;
 
 % ============================================================
 % Reactive power control
 % ============================================================
-V_meas = sqrt(v_PCC_d_c^2 + v_PCC_q_c^2);
-Q_meas = v_PCC_q_c*i2d_c - v_PCC_d_c*i2q_c;
+V_meas = sqrt(v_PCC_d^2 + v_PCC_q^2);
+Q_meas = v_PCC_q*i2d - v_PCC_d*i2q;
 
 err_v = p.V_ref(t) - V_meas;
 err_q = (p.Q_ref(t) - Q_meas) + p.K_vq*err_v;
@@ -78,8 +70,8 @@ Vrefd = p.Kp_q*err_q + p.Ki_q*xi_Q;
 % Virtual impedance
 % ============================================================
 
-e_vd = Vrefd - v_PCC_d_c;
-e_vq = - v_PCC_q_c;  
+e_vd = Vrefd - v_PCC_d;
+e_vq = 0 - v_PCC_q;  
 
 d_vv_d = p.Kpv*e_vd + p.Kiv*xi_vd;
 d_vv_q = p.Kpv*e_vq + p.Kiv*xi_vq;
@@ -99,25 +91,58 @@ if I_mag > p.I_max
     scale = p.I_max / I_mag;
     Id_ref = Id_ref * scale;
     Iq_ref = Iq_ref * scale;
+    % 
+    % dxi_vd = dxi_vd*0.01; 
+    % dxi_vq = dxi_vq*0.01;
+    % dxi_Q = dxi_Q*0.01;
+
 end
 
 % ============================================================
 % Current controller
 % ============================================================
-err_id = Id_ref - i1d_c;
-err_iq = Iq_ref - i1q_c;
+% err_id = Id_ref - i1d;
+% err_iq = Iq_ref - i1q;
+% 
+% dxi_id = err_id;
+% dxi_iq = err_iq;
+% 
+% Econvd_c = p.Kp_c*err_id + p.Ki_c*xi_id ...
+%       - omega_c*p.L1*i1q + v_PCC_d;
+% 
+% Econvq_c = p.Kp_c*err_iq + p.Ki_c*xi_iq ...
+%       + omega_c*p.L1*i1d + v_PCC_q;
+% 
+% c = cos(delta_c);
+% s = sin(delta_c);
+% 
+% Econvd =  c*Econvd_c + -s*Econvq_c;
+% Econvq = s*Econvd_c + c*Econvq_c;
+
+
+err_id = Id_ref - i1d;
+err_iq = Iq_ref - i1q;
+
+c = cos(delta_c);
+s = sin(delta_c);
+
+err_id =  c*err_id + -s*err_iq;
+err_iq = s*err_id + c*err_iq;
+
+
 
 dxi_id = err_id;
 dxi_iq = err_iq;
 
-Econvdc = p.Kp_c*err_id + p.Ki_c*xi_id ...
-      - omega_c*p.L1*i1q_c + v_PCC_d_c;
+Econvd = p.Kp_c*err_id + p.Ki_c*xi_id ...
+      - omega_c*p.L1*i1q + v_PCC_d;
 
-Econvqc = p.Kp_c*err_iq + p.Ki_c*xi_iq ...
-      + omega_c*p.L1*i1d_c + v_PCC_q_c;
+Econvq = p.Kp_c*err_iq + p.Ki_c*xi_iq ...
+      + omega_c*p.L1*i1d + v_PCC_q;
 
-Econvd = c*Econvdc - s*Econvqc;
-Econvq = s*Econvdc + c*Econvqc;
+
+
+
 
 % ============================================================
 % Electrical dynamics
@@ -131,9 +156,10 @@ di2q=(v_PCC_q-vg_q-p.R2*i2q-omega_g*p.L2*i2d)/p.L2;
 % ============================================================
 % Swing equations
 % ============================================================
-P_PCC = v_PCC_d_c*i2d_c + v_PCC_q_c*i2q_c;
+P_PCC = v_PCC_d*i2d + v_PCC_q*i2q;
 
 domega_c = (p.P_ref(t) - P_PCC - p.D_conv*(omega_c-p.w_nom))/p.J_conv;
+% domega_c = (p.P_ref(t) - P_PCC - p.D_conv*(omega_c-omega_g))/p.J_conv;
 ddelta_c = omega_c - p.w_nom;
 
 P_e = vg_d*i2d + vg_q*i2q;

@@ -3,15 +3,29 @@
 % ============================================================
 run setup.m
 
-use_last_end_x_as_init = 1;
+run grid_and_filter_parameters.m
+run temp_gains.m
+p = struct;
+
+% grid/filter parameters automatically available from scripts
+vars = who;
+for k = 1:length(vars)
+    p.(vars{k}) = eval(vars{k});
+end
+
+use_last_end_x_as_init = 0;
 save_last_end_x_as_init = 0;
 
 init_zero = 0;
-find_steady_state = 0;
-if 1
+find_steady_state = 1;
+sys_num = 2;
+if sys_num == 1
+    sys_ode = @system_ode_split;
+    reconstruct_fun = @reconstruct_logs_split;
+elseif sys_num == 2
     sys_ode = @system_ode_3;
     reconstruct_fun = @reconstruct_logs_3;
-else
+elseif sys_num == 3
     sys_ode = @system_ode;
     reconstruct_fun = @reconstruct_logs;
 end
@@ -31,7 +45,7 @@ update_plots = 1*ones(1,7);
 % ============================================================
 % Simulation horizon
 % ============================================================
-t_end = 5000;
+t_end = 100;
 tspan = [0 t_end];
 
 % ============================================================
@@ -63,8 +77,8 @@ V.y1      = 1.00;
 % Reactive power reference
 Q.t_start = 20;
 Q.t_dur   = 0;
-Q.y0      = -0.;
-Q.y1      = -0.;
+Q.y0      = 0.0;
+Q.y1      = 0.0;
 
 % Active power reference
 P.t_start = 10;
@@ -75,8 +89,8 @@ P.y1      = .5;
 % Mechanical power
 Pm.t_start = 10;
 Pm.t_dur   = 0;
-Pm.y0      = .0;
-Pm.y1      = .6;
+Pm.y0      = 0.;
+Pm.y1      = .5;
 
 vg_mag = @(t) fault_profile(t,Vg);
 vg_phase_rad = @(t) ramp_signal(t, Phg.t_start, Phg.t_dur, deg2rad(Phg.y0), deg2rad(Phg.y1));
@@ -102,29 +116,30 @@ I_max = 1.2;
 % ============================================================
 % Swing Equation Parameters Grid
 % ============================================================
-J_g = 10;
-D_g = 70;
+Jg = 10;
+Dg = 70;
 
 % ============================================================
 % Swing Equation Parameters Converter
 % ============================================================
-J_conv = 1;
-D_conv = 70;
+Jconv = 1;
+Dconv = 70;
 
 % ============================================================
 % Reactive Power Control
 % ============================================================
-K_vq =  10;      
-Kp_q = 10; 
+Kvq =  10;      
+Kpq = 10; 
 tau_q_i = 0.5;
-Ki_q = K_vq/tau_q_i; 
+Kiq = Kvq/tau_q_i; 
 
 % ============================================================
 % Virtual Admittance
 % ============================================================
-R_v = 0.15;
-X_v = 0.03;
-Z_v2 = sqrt(R_v^2 + X_v^2);
+% Set in parameter file:
+% R_v = 0.15;
+% X_v = 0.03;
+% Z_v2 = sqrt(R_v^2 + X_v^2);
 
 % Virtual impedance PI gains
 Kpv = 1;
@@ -134,14 +149,14 @@ Kiv = Kpv/tau_v;
 % ============================================================
 % Current Control
 % ============================================================
-Kp_c = 1; 
+Kpc = 1; 
 tau_c_i = 0.1;
-Ki_c = Kp_c/tau_c_i; 
+Kic = Kpc/tau_c_i; 
 
 % ============================================================
 % Load Grid and Filter Parameters
 % ============================================================
-run grid_and_filter_parameters.m
+run split_system_parameters.m
 
 
 % ============================================================
@@ -163,8 +178,6 @@ state_idx = struct( ...
     'xi_id', 22, 'xi_iq', 23 ...    % Current controller integrators
 );
 
-
-
 n_states = numel(fieldnames(state_idx));
 
 x0 = zeros(n_states,1);
@@ -174,6 +187,7 @@ x0(state_idx.omega_g) = w_nom;
 x0(state_idx.omega_c) = w_nom;
 x0(state_idx.vt1d) = 1;
 x0(state_idx.vt2d) = 1;
+
 
 % ============================================================
 % Collect parameters in struct
@@ -186,6 +200,7 @@ for k = 1:length(vars)
     p.(vars{k}) = eval(vars{k});
 end
 
+
 % ============================================================
 % Find steady-state initial condition (optional)
 % ============================================================
@@ -195,7 +210,7 @@ if use_last_end_x_as_init && exist(checkpoint_file,'file')
     load(checkpoint_file);
     x0 = last_x;
     res = norm(sys_ode(0, x0, p));
-end 
+end
 
 
 
@@ -221,7 +236,39 @@ if find_steady_state && (res > 1e-7)
     end
 end
 
-x0(state_idx.delta_c) = mod(x0(state_idx.delta_c), 2*pi);
+
+u0 = [V_ref(0); P_ref(0); Q_ref(0)];
+d0 = [Pm_cont(0); vg_mag(0); vg_phase_rad(0)];
+
+
+p_num = [ ...
+    Rlp;
+    Kpq;
+    Kvq;
+    Kiq;
+    Rv;
+    Xv;
+    Kpv;
+    Kpc;
+    L1;
+    L2;
+    Jconv;
+    Jg
+]';
+
+
+A_num = A_fun(x0, u0, d0, p_num);
+
+Afull = A + A_fun(x0, u0, d0, p_num);
+Bfull = B + double(B_fun(x0,u0,d0,p_num));
+Efull = E + double(E_fun(x0,u0,d0,p_num));
+
+
+p.Afull = Afull;
+p.Bfull = Bfull;
+p.Efull = Efull;
+
+
 
 % ============================================================
 % Solver
@@ -233,14 +280,19 @@ opts = odeset('RelTol',1e-4, 'AbsTol',1e-8, 'MaxStep',1e-1);
 % [t,x] = ode15s(@(t,x) sys_ode(t,x,p), tspan, x0, opts);
 % [t,x] = ode45(@(t,x) sys_ode(t,x,p), tspan, x0, opts);
 
-% t_fixed = linspace(tspan(1), tspan(end), 10000);
-% [t1,x1] = ode23t(@(t,x) system_ode(t,x,p), t_fixed, x0, opts);
+% t_fixed = linspace(tspan(1), tspan(end), 100000);
+% % [t1,x1] = ode23t(@(t,x) system_ode_split(t,x,p), t_fixed, x0, opts);
+% % [t2,x2] = ode23t(@(t,x) system_ode_3(t,x,p), t_fixed, x0, opts);
+% 
+% % [t1,x1] = ode23t(@(t,x) system_ode_3(t,x,p), t_fixed, x0, opts);
+% 
+% [t1,x1] = ode23t(@(t,x) system_ode_split(t,x,p), t_fixed, x0, opts);
 % [t2,x2] = ode23t(@(t,x) system_ode_3(t,x,p), t_fixed, x0, opts);
 % t = t1.';         
 % x1 = x1.';        
 % x2 = x2.';
 % 
-% log1 = reconstruct_logs(p,t,x1);
+% log1 = reconstruct_logs_split(p,t,x1);
 % log2 = reconstruct_logs_3(p,t,x2);
 
 x = x.';

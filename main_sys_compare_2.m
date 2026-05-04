@@ -19,13 +19,25 @@ end
 
 
 use_last_end_x_as_init = 1;
-save_last_end_x_as_init = 1;
 
-init_zero = 1;
+
+init_zero = 0;
 init_at_x0_conditions = 0;
-find_steady_state = 1;
-sys_num_1 = 9;
-if sys_num_1 == 1
+find_steady_state = 0;
+
+if init_at_x0_conditions || init_zero
+    save_last_end_x_as_init = 1;
+else 
+    save_last_end_x_as_init = 0;
+end
+
+sys_num_1 = 6;
+sys_num_2 = 0;
+
+if sys_num_1 == 0
+    sys_ode_1 = @system_ode_6;
+    reconstruct_fun_1 = @reconstruct_logs_6;   
+elseif sys_num_1 == 1
     sys_ode_1 = @system_ode;
     reconstruct_fun_1 = @reconstruct_logs;    
 elseif sys_num_1 == 2
@@ -43,17 +55,22 @@ elseif sys_num_1 == 5
     idx = setdiff(1:23, 7);
 elseif sys_num_1 == 6
     sys_ode_1 = @system_ode_6;
-    reconstruct_fun_1 = @reconstruct_logs;
+    reconstruct_fun_1 = @reconstruct_logs_6;
 elseif sys_num_1 == 7
     sys_ode_1 = @system_ode_lin;
     reconstruct_fun_1 = @reconstruct_logs_lin;
+elseif sys_num_1 == 8
+    sys_ode_1 = @system_ode_lin;
+    reconstruct_fun_1 = @reconstruct_logs_lin_5;
 elseif sys_num_1 == 9
     sys_ode_1 = @system_ode_9;
-    reconstruct_fun_1 = @reconstruct_logs_5;
+    reconstruct_fun_1 = @reconstruct_logs_9;
 end
 
-sys_num_2 = 5;
-if sys_num_2 == 1
+if sys_num_2 == 0
+    sys_ode_2 = @system_ode_6;
+    reconstruct_fun_2 = @reconstruct_logs_6;   
+elseif sys_num_2 == 1
     sys_ode_2 = @system_ode;
     reconstruct_fun_2 = @reconstruct_logs;    
 elseif sys_num_2 == 2
@@ -70,7 +87,7 @@ elseif sys_num_2 == 5
     reconstruct_fun_2 = @reconstruct_logs_5;
 elseif sys_num_2 == 6
     sys_ode_2 = @system_ode_6;
-    reconstruct_fun_2 = @reconstruct_logs;
+    reconstruct_fun_2 = @reconstruct_logs_6;
 elseif sys_num_2 == 7
     sys_ode_2 = @system_ode_lin;
     reconstruct_fun_2 = @reconstruct_logs_lin;
@@ -79,8 +96,9 @@ elseif sys_num_2 == 8
     reconstruct_fun_2 = @reconstruct_logs_lin_5;
 elseif sys_num_2 == 9
     sys_ode_2 = @system_ode_9;
-    reconstruct_fun_2 = @reconstruct_logs_5;
+    reconstruct_fun_2 = @reconstruct_logs_9;
 end
+
 % update_plots = [
 %     1; % 1
 %     0; % 2
@@ -91,13 +109,13 @@ end
 %     0; % 7
 % ];
 
-update_plots = 1*ones(1,7);
-plotPureStates = 0;
+update_plots = 1*ones(1,100);
+plotPureStates = 1;
 
 % ============================================================
 % Simulation horizon
 % ============================================================
-t_end = 100;
+t_end = 1000;
 tspan = [0 t_end];
 
 % ============================================================
@@ -108,10 +126,10 @@ Vg.y_prefault  = 1.0;    % normal voltage
 Vg.y_fault     = 1.0;    % voltage during fault
 Vg.y_postfault = 1.0;    % voltage after clearing
 
-Vg.t_fault     = 100;      % fault start
+Vg.t_fault     = 400;      % fault start
 Vg.t_apply     = 0.;   % ramp duration into fault
 
-Vg.t_clear     = 101;   % clearing time
+Vg.t_clear     = 401;   % clearing time
 Vg.t_recover   = 0.;   % ramp duration back
 
 % Grid phase 
@@ -129,9 +147,8 @@ V.y1      = 1.00;
 % Reactive power reference
 Q.t_start = 200;
 Q.t_dur   = 0;
-Q.y0      = -0.2;
-Q.y1      = -0.2;
-Q.y1      = -0.2;
+Q.y0      = -0.0;
+Q.y1      = -0.0;
 
 
 % Active power reference
@@ -141,10 +158,10 @@ P.y0      = 0.5;
 P.y1      = 0.5;
 
 % Mechanical power
-Pm.t_start = 10;
+Pm.t_start = 100;
 Pm.t_dur   = 0;
-Pm.y0      = 0.5;
-Pm.y1      = 0.6;
+Pm.y0      = 0.8;
+Pm.y1      = 0.9;
 
 vg_mag = @(t) fault_profile(t,Vg);
 vg_phase_rad = @(t) ramp_signal(t, Phg.t_start, Phg.t_dur, deg2rad(Phg.y0), deg2rad(Phg.y1));
@@ -168,6 +185,11 @@ elseif init_zero
     P_ref = @(t) 0;
     Pm_cont = @(t) 0;
 end
+
+u0 = [V_ref(0); P_ref(0); Q_ref(0)];
+d0 = [Pm_cont(0); vg_mag(0); vg_phase_rad(0)];
+p.u0 = u0;
+p.d0 = d0;
 
 % ============================================================
 % Faults and limits
@@ -220,22 +242,18 @@ run temp_gains.m
 % Load Grid and Filter Parameters
 % ============================================================
 
+run split_system_parameters_5.m
 
+run split_system_parameters.m
 
-if (sys_num_1 == 5) 
-    run split_system_parameters_5.m
-else
-    run split_system_parameters.m
-end
 
 
 
 % ============================================================
 % Initial state
 % ============================================================
-% State indices
-if (sys_num_1 == 5) || (sys_num_1 == 9)
-    state_idx = struct( ...
+
+state_idx = struct( ...
         'i1d', 1, 'i1q', 2, ...         % Converter currents
         'i2d', 3, 'i2q', 4, ...         % Grid currents
         'vcd', 5, 'vcq', 6, ...         % Capacitor voltage
@@ -247,37 +265,33 @@ if (sys_num_1 == 5) || (sys_num_1 == 9)
         'delta_c', 16, 'omega_c', 17,...% Converter angle & speed
         'xi_Q', 18, ...                 % Reactive power integrator
         'xi_vd', 19, 'xi_vq', 20, ...   % Virtual impedance integrators
-        'xi_id', 21, 'xi_iq', 22 ...    % Current controller integrators
+        'xi_id', 21, 'xi_iq', 22, ...    % Current controller integrators
+        'delta_g', 23 ...
     );
-    n_states = numel(fieldnames(state_idx));
-    x0 = zeros(n_states,1);
-    x0(state_idx.vcd) = 1;
-    x0(state_idx.omega_c) = w_nom;
-    x0(state_idx.vt1d) = 1;
-    x0(state_idx.vt2d) = 1;
-else
-    state_idx = struct( ...
-        'i1d', 1, 'i1q', 2, ...         % Converter currents
-        'i2d', 3, 'i2q', 4, ...         % Grid currents
-        'vcd', 5, 'vcq', 6, ...         % Capacitor voltage
-        'delta_g', 7, 'omega_g', 8, ... % Grid generator angle & speed
-        'it1d', 9, 'it1q', 10, ...      % Trap filter 1
-        'vt1d', 11, 'vt1q', 12, ...
-        'it2d', 13, 'it2q', 14, ...     % Trap filter 2
-        'vt2d', 15, 'vt2q', 16, ...
-        'delta_c', 17,'omega_c', 18,... % Converter angle & speed
-        'xi_Q', 19, ...                 % Reactive power integrator
-        'xi_vd', 20, 'xi_vq', 21, ...   % Virtual impedance integrators
-        'xi_id', 22, 'xi_iq', 23 ...    % Current controller integrators
-    );
-    n_states = numel(fieldnames(state_idx));
-    x0 = zeros(n_states,1); 
-    x0(state_idx.vcd) = 1;
-    x0(state_idx.omega_g) = w_nom;
-    x0(state_idx.omega_c) = w_nom;
-    x0(state_idx.vt1d) = 1;
-    x0(state_idx.vt2d) = 1;
+
+if (sys_num_1 == 4) || (sys_num_1 == 5)  || (sys_num_1 == 6) || (sys_num_1 == 8) || (sys_num_1 == 9)
+    x0_1 = zeros(22,1); 
+else 
+    x0_1 = zeros(23,1); 
 end
+
+x0_1(state_idx.vcd) = 1;
+x0_1(state_idx.omega_g) = w_nom;
+x0_1(state_idx.omega_c) = w_nom;
+x0_1(state_idx.vt1d) = 1;
+x0_1(state_idx.vt2d) = 1;
+
+if (sys_num_2 == 4) || (sys_num_2 == 5)  || (sys_num_2 == 6) || (sys_num_2 == 8) || (sys_num_2 == 9)
+    x0_2 = zeros(22,1); 
+else 
+    x0_2 = zeros(23,1); 
+end
+x0_2(state_idx.vcd) = 1;
+x0_2(state_idx.omega_g) = w_nom;
+x0_2(state_idx.omega_c) = w_nom;
+x0_2(state_idx.vt1d) = 1;
+x0_2(state_idx.vt2d) = 1;
+
 
 
 
@@ -300,115 +314,154 @@ end
 % Find steady-state initial condition (optional)
 % ============================================================
 res = inf;
-checkpoint_file = "init_data/system_ode_states_"+ num2str(sys_num_1) + '.mat';
+checkpoint_file_1 = "init_data/system_ode_states_" + num2str(sys_num_1) + ".mat";
+checkpoint_file_2 = "init_data/system_ode_states_" + num2str(sys_num_2) + ".mat";
 
-if use_last_end_x_as_init && exist(checkpoint_file,'file')
-    load(checkpoint_file);
-    x0 = last_x;
-    res = norm(sys_ode_1(0, x0, p));
+
+if use_last_end_x_as_init && exist(checkpoint_file_1,'file') && not((sys_num_1 == 7) || (sys_num_1 == 8))
+    load(checkpoint_file_1);
+    x0_1 = last_x;
+    res = norm(sys_ode_1(0, x0_1, p));
+elseif (sys_num_1 == 5)
+    load("init_data/system_ode_states_3.mat");
+    x0_1 = last_x;
+    res = norm(system_ode_3(0, x0_1, p));
+elseif (sys_num_1 == 8)
+    load("init_data/system_ode_states_5.mat");
+    x0_1 = last_x;
+    res = norm(system_ode_5(0, x0_1, p));
+end
+if use_last_end_x_as_init && exist(checkpoint_file_2,'file') && not((sys_num_2 == 7) || (sys_num_2 == 8))
+    load(checkpoint_file_2);
+    x0_2 = last_x;
+    res = norm(sys_ode_2(0, x0_2, p));
+elseif (sys_num_2 == 7)
+    load("init_data/system_ode_states_3.mat");
+    x0_2 = last_x;
+    res = norm(system_ode_3(0, x0_2, p));
+elseif (sys_num_2 == 8)
+    load("init_data/system_ode_states_5.mat");
+    x0_2 = last_x;
+    res = norm(system_ode_5(0, x0_2, p));
 end
 
 
 
-if find_steady_state && (res > 1e-7)
-    f_ss = @(x) sys_ode_1(0, x, p);
-    opts = optimoptions('lsqnonlin', ...
+% ============================================================
+% Steady-state for system 1
+% ============================================================
+
+opts = optimoptions('lsqnonlin', ...
         'Display','off', ...           
         'FunctionTolerance',1e-12, ...
         'StepTolerance',1e-12, ...
         'OptimalityTolerance',1e-12, ...
         'MaxFunctionEvaluations',1e6);
-    try
-        x_ss = lsqnonlin(@(x) f_ss(x), x0, [], [],opts);
-        res = norm(f_ss(x_ss));
-        if res < 1e-7
-            x0 = x_ss;
-        else
-            x0 = x_ss;
-            warning('Steady-state solver did not converge to sufficient tolerance (residual = %g).', res);
+
+
+
+if (sys_num_1 == 7)
+    res1 = norm(system_ode_3(0, x0_1, p));
+elseif (sys_num_1 == 8)
+    res1 = norm(system_ode_5(0, x0_1, p));
+else
+    res1 = norm(sys_ode_1(0, x0_1, p));
+end
+
+
+
+if find_steady_state && (res1 > 1e-7)
+    if (sys_num_1 == 7)
+        f_ss1 = @(x) system_ode_3(0, x, p);
+        x0_1 = lsqnonlin(f_ss1, x0_1, [], [], opts);
+    elseif (sys_num_1 == 8)
+        f_ss1 = @(x) system_ode_5(0, x, p);
+        x0_1 = lsqnonlin(f_ss1, x0_1, [], [], opts);
+    else
+        f_ss1 = @(x) sys_ode_1(0, x, p);
+        x0_1 = lsqnonlin(f_ss1, x0_1, [], [], opts);
+
+        res1 = norm(sys_ode_1(0, x0_1, p));
+        if res1 > 10000
+
+            x0_1(18:20) = 0*x0_1(18:20);
+            x0_1 = lsqnonlin(f_ss1, x0_1, [], [], opts);
         end
-    catch ME
-        warning(['Steady-state solver failed: ', ME.message, '. Using original x0.']);
+    end
+end
+
+% ============================================================
+% Steady-state for system 2
+% ============================================================
+if (sys_num_2 == 7)
+    res2 = norm(system_ode_3(0, x0_2, p));
+elseif (sys_num_2 == 8)
+    res2 = norm(system_ode_5(0, x0_2, p));
+else
+    res2 = norm(sys_ode_2(0, x0_2, p));
+end
+
+if find_steady_state && (res2 > 1e-7)
+    if (sys_num_2 == 7)
+        f_ss2 = @(x) system_ode_3(0, x, p);
+        x0_2 = lsqnonlin(f_ss2, x0_2, [], [], opts);
+    elseif (sys_num_2 == 8)
+        f_ss2 = @(x) system_ode_5(0, x, p);
+        x0_2 = lsqnonlin(f_ss2, x0_2, [], [], opts);
+    else
+        f_ss2 = @(x) sys_ode_2(0, x, p);
+        x0_2 = lsqnonlin(f_ss2, x0_2, [], [], opts);
+
+        res2 = norm(sys_ode_2(0, x0_2, p));
+        if res2 > 10000
+            x0_2(18:20) = 0*x0_2(18:20);
+            x0_2 = lsqnonlin(f_ss2, 0*x0_2, [], [], opts);
+        end
+
     end
 end
 
 % x0(state_idx.delta_c) = mod(x0(state_idx.delta_c), 2*pi) - 2*pi;
 % % x0(state_idx.delta_c) = 0;
 % x0(state_idx.delta_g) = mod(x0(state_idx.delta_g), 2*pi) - 2*pi;
-if not(sys_num_1 == 5) && not(sys_num_1 == 9)
-    x0(state_idx.delta_c) =  -mod(x0(state_idx.delta_g), 2*pi) + mod(x0(state_idx.delta_c), 2*pi);
-    x0(state_idx.delta_g) = 0;
+if not((sys_num_1 == 0) || (sys_num_1 == 4) || (sys_num_1 == 5) || (sys_num_1 == 6) ) && not(sys_num_1 == 8) && not(sys_num_1 == 9)
+    x0_1(state_idx.delta_c) = -mod(x0_1(state_idx.delta_g), 2*pi) + mod(x0_1(state_idx.delta_c), 2*pi);
+    x0_1(state_idx.delta_g) = 0;
+end
+
+if not((sys_num_2 == 0) || (sys_num_2 == 4)  || (sys_num_2 == 5) || (sys_num_2 == 6) ) && not(sys_num_2 == 8) && not(sys_num_2 == 9)
+    x0_2(state_idx.delta_c) = -mod(x0_2(state_idx.delta_g), 2*pi) + mod(x0_2(state_idx.delta_c), 2*pi);
+    x0_2(state_idx.delta_g) = 0;
 end
 
 
-u0 = [V_ref(0); P_ref(0); Q_ref(0)];
-d0 = [Pm_cont(0); vg_mag(0); vg_phase_rad(0)];
 
-p.x0 = x0;
-p.u0 = u0;
-p.d0 = d0;
 
 p_num = [Rlp; Kpq; Kvq; Kiq; Rv; Xv; Kpv; Kpc; L1; L2; Jconv; Jg]';
 
 
 
-% dx = sys_ode_1(0, x0, p);
-% A_num = A_fun(x0, u0, d0, p_num);
-% max(real(eig(A_num)));
 
-if (sys_num_1 == 5)
-    Afull = A + A_fun_5(x0, u0, d0, p_num);
-    Bfull = B + B_fun_5(x0,u0,d0,p_num);
-    Efull = E + E_fun_5(x0,u0,d0,p_num);
+
+if sys_num_1 == 8
+    Afull_5 = A_5 + A_fun_5(x0_1, u0, d0, p_num);
+    Bfull_5 = B_5 + B_fun_5(x0_1,u0,d0,p_num);
+    Efull_5 = E_5 + E_fun_5(x0_1,u0,d0,p_num);
+    p.Afull = Afull_5;
+    p.Bfull = Bfull_5;
+    p.Efull = Efull_5;
 else
-    Afull = A + A_fun(x0, u0, d0, p_num);
-    Bfull = B + B_fun(x0,u0,d0,p_num);
-    Efull = E + E_fun(x0,u0,d0,p_num);
+    Afull = A + A_fun(x0_1, u0, d0, p_num);
+    Bfull = B + B_fun(x0_1,u0,d0,p_num);
+    Efull = E + E_fun(x0_1,u0,d0,p_num);
+    p.Afull = Afull;
+    p.Bfull = Bfull;
+    p.Efull = Efull;
 end
 
-% % Original size
-% n = 23;
-% 
-% % Index to remove
-% idx_remove = 7;
-% 
-% % Keep indices
-% idx = setdiff(1:n, idx_remove);
-% 
-% run split_system_parameters.m
-% 
-% % Reduce system
-% 
-% Afull = A + A_fun([x0(1:6);1;x0(7:22)], u0, d0, p_num);
-% Bfull = B + double(B_fun(x0,u0,d0,p_num));
-% Efull = E + double(E_fun(x0,u0,d0,p_num));
-% 
-% 
-% 
-% Afull = Afull(idx, idx);
-% Bfull = Bfull(idx, :);
-% Efull = Efull(idx, :);
-% 
-% run split_system_parameters_5.m
-% 
-% 
-% lambda_Afull = eig(Afull)
-
-
-% fig98 = figure(98);
-% % theme(fig98, 'light')
-% plot(real(lambda_Afull), imag(lambda_Afull), 'x', LineWidth=2);
-% grid on;
-% 
-% xlabel('Real Part');
-% ylabel('Imaginary Part');
-% title('Eigenvalues of A_{full}');
 
 
 
-p.Afull = Afull;
-p.Bfull = Bfull;
-p.Efull = Efull;
 % eig(A + A_fun_5(x0, u0, d0, p_num))
 
 p_vec = struct();
@@ -440,27 +493,75 @@ opts = odeset('RelTol',1e-4, 'AbsTol',1e-8, 'MaxStep',1e-1);
 % [t1,x1] = ode23t(@(t,x) sys_ode_1(t,x,p), t_fixed, x0, opts);
 % [t2,x2] = ode23t(@(t,x) sys_ode_2(t,x,p), t_fixed, x0, opts);
 
-[t1,x1] = ode23t(@(t,x) sys_ode_1(t,x,p), tspan, x0, opts);
-[t2,x2] = ode23t(@(t,x) sys_ode_2(t,x,p), tspan, x0, opts);
 
-% if (sys_num_1 == 5) && not(sys_num_2 == 8)
-%     x0_temp = [x0; 0];
-%     p.state_idx.delta_g = 23;
-%     [t2,x2] = ode23t(@(t,x) sys_ode_2(t,x,p), tspan, x0_temp, opts);
-% else 
-%     [t2,x2] = ode23t(@(t,x) sys_ode_2(t,x,p), tspan, x0, opts);
-% end
+p.x0 = x0_1;
+if not(sys_num_1 == 0)
+    [t1,x1] = ode23t(@(t,x) sys_ode_1(t,x,p), tspan, x0_1, opts);
+end
 
-t1 = t1.'; 
-t2 = t2.'; 
-x1 = x1.';        
-x2 = x2.';
+if sys_num_2 == 8
+    Afull_5 = A_5 + A_fun_5(x0_2, u0, d0, p_num);
+    Bfull_5 = B_5 + B_fun_5(x0_2,u0,d0,p_num);
+    Efull_5 = E_5 + E_fun_5(x0_2,u0,d0,p_num);
+    p.Afull = Afull_5;
+    p.Bfull = Bfull_5;
+    p.Efull = Efull_5;
+else
+    Afull = A + A_fun(x0_2, u0, d0, p_num);
+    Bfull = B + B_fun(x0_2,u0,d0,p_num);
+    Efull = E + E_fun(x0_2,u0,d0,p_num);
+    p.Afull = Afull;
+    p.Bfull = Bfull;
+    p.Efull = Efull;
+end
+
+
+p.x0 = x0_2;
+if not(sys_num_2 == 0)
+    [t2,x2] = ode23t(@(t,x) sys_ode_2(t,x,p), tspan, x0_2, opts);
+end
+
+if (sys_num_1 == 0) && (sys_num_2 == 0)
+    warning("No system chosen")
+    return
+end
+
+if not(sys_num_1 == 0)
+    t1 = t1.'; 
+    x1 = x1.';   
+else
+    t1 = t2'*0;
+    x1 = x2';
+end
+
+
+if not(sys_num_2 == 0)
+    t2 = t2.'; 
+    x2 = x2.';
+else
+    t2 = t1*0;
+    x2 = x1;
+end
 
 
 
-p.log0 = reconstruct_logs_split(p, 0, p.x0);
 
+
+
+if (sys_num_1 == 7) || (sys_num_1 == 8)
+    p.x0 = x0_1;
+    p.log0 = reconstruct_logs_split(p, 0, x0_1);
+end
+% p.x0 = x0;
+% p.u0 = u0;
+% p.d0 = d0;
 log1 = reconstruct_fun_1(p,t1,x1);
+
+
+if (sys_num_2 == 7) || (sys_num_2 == 8)
+    p.x0 = x0_2;
+    p.log0 = reconstruct_logs_split(p, 0, x0_2);
+end
 
 log2 = reconstruct_fun_2(p,t2,x2);
 
@@ -468,19 +569,27 @@ log2 = reconstruct_fun_2(p,t2,x2);
 if save_last_end_x_as_init && not(any(isnan(x1(:, end))))
 
     last_x = x1(:, end);
-    save(checkpoint_file, 'last_x');
+    save(checkpoint_file_1, 'last_x');
 end
 
+if save_last_end_x_as_init && not(any(isnan(x2(:, end))))
+
+    last_x = x2(:, end);
+    save(checkpoint_file_2, 'last_x');
+end
+
+
 angle_idx = state_idx.delta_c;
-delta0 = x0(angle_idx,:);
+delta0 = x0_1(angle_idx,:);
+
 delta1 = -x1(angle_idx,:);
 delta2 = -x2(angle_idx,:);
 % delta1 = 0;
 % delta2 = 0;
 
-if sys_num_1 == 7
-    i11 = dq_rotate_lin(x1(state_idx.i1d,:), x1(state_idx.i1q,:), delta1, x0(state_idx.i1d,:), x0(state_idx.i1q,:), delta0);
-    i21 = dq_rotate_lin(x1(state_idx.i2d,:), x1(state_idx.i2q,:), delta1, x0(state_idx.i2d,:), x0(state_idx.i2q,:), delta0);
+if (sys_num_1 == 7) || (sys_num_1 == 8)
+    i11 = dq_rotate_lin(x1(state_idx.i1d,:), x1(state_idx.i1q,:), delta1, x0_1(state_idx.i1d,:), x0_1(state_idx.i1q,:), delta0);
+    i21 = dq_rotate_lin(x1(state_idx.i2d,:), x1(state_idx.i2q,:), delta1, x0_1(state_idx.i2d,:), x0_1(state_idx.i2q,:), delta0);
     V_PCC1 = dq_rotate_lin(log1.V_PCC(1,:), log1.V_PCC(2,:), delta1, p.log0.V_PCC(1,1), p.log0.V_PCC(2,1), delta0);
     Econv1 = dq_rotate_lin(log1.Econv(1,:), log1.Econv(2,:), delta1, p.log0.Econv(1,1), p.log0.Econv(2,1), delta0);
 else
@@ -490,9 +599,10 @@ else
     Econv1 = dq_rotate(log1.Econv(1,:), log1.Econv(2,:), delta1);
 end
 
-if sys_num_2 == 7
-    i12 = dq_rotate_lin(x2(state_idx.i1d,:), x2(state_idx.i1q,:), delta2, x0(state_idx.i1d,:),x0(state_idx.i1q,:),delta0);
-    i22 = dq_rotate_lin(x2(state_idx.i2d,:), x2(state_idx.i2q,:), delta2, x0(state_idx.i2d,:), x0(state_idx.i2q,:), delta0);
+delta0 = x0_2(angle_idx,:);
+if (sys_num_1 == 7) || (sys_num_1 == 8)
+    i12 = dq_rotate_lin(x2(state_idx.i1d,:), x2(state_idx.i1q,:), delta2, x0_2(state_idx.i1d,:),x0_2(state_idx.i1q,:),delta0);
+    i22 = dq_rotate_lin(x2(state_idx.i2d,:), x2(state_idx.i2q,:), delta2, x0_2(state_idx.i2d,:), x0_2(state_idx.i2q,:), delta0);
     V_PCC2 = dq_rotate_lin(log2.V_PCC(1,:), log2.V_PCC(2,:), delta2, p.log0.V_PCC(1,1), p.log0.V_PCC(2,1), delta0);
     Econv2 = dq_rotate_lin(log2.Econv(1,:), log2.Econv(2,:), delta2, p.log0.Econv(1,1), p.log0.Econv(2,1), delta0);
 else 
@@ -716,57 +826,8 @@ if update_plots(7)
     axis padded
 end
 
-% ============================================================
-% Error norm 
-% ============================================================
-% fig99 = findobj('Type','figure','Number',99);
-%     if isempty(fig99)
-%         fig99 = figure(99);
-%         set(fig99,'WindowStyle','docked');
-%     else
-%         clf(fig99);
-%     end
-%     set(0,'CurrentFigure',fig99);
-% 
-% 
-% err = x1 - x2;
-% err_norm = vecnorm(err,2,1);
-% 
-% plot(t,err_norm,'LineWidth',1.5)
-% grid on
-% title('State Error Norm')
-% xlabel('Time (s)')
-% ylabel('||x_1 - x_2||_2')
 
 
-% % Set all figures to light background (white) and adjust axes/text colors for visibility
-% figs = findall(0,'Type','figure');
-% for k = 1:numel(figs)
-%     fig = figs(k);
-%     % theme(fig,'light')
-%     theme(fig,'dark')
-% end
-
-fig1Name = outputFolder + "\Currens_and_PCC_Voltage_dq" + fig_type;
-fig2Name = outputFolder + "\Active_and_Reactive_Power" + fig_type;
-fig3Name = outputFolder + "\Synchronization_States" + fig_type;
-fig4Name = outputFolder + "\Vref_and_Capacitor_Voltage" + fig_type;
-fig5Name = outputFolder + "\Iref_Magnitude" + fig_type;
-fig6Name = outputFolder + "\I1_and_I2_Magnitude" + fig_type;
-fig7Name = outputFolder + "\Econv_and_EconvMag" + fig_type;
-
-if export
-    exportLight(fig1,fig1Name)
-    exportLight(fig2,fig2Name)
-    exportLight(fig3,fig3Name)
-    exportLight(fig4,fig4Name)
-    exportLight(fig5,fig5Name)
-    exportLight(fig6,fig6Name)
-    exportLight(fig7, fig7Name);
-end
-
-
-toc
 
 
 fig8 = findobj('Type','figure','Number',8);
@@ -795,25 +856,94 @@ legend('\delta_g - \delta_{conv}','\delta_g^{(2)} - \delta_{conv}^{(2)}')
 axis padded
 
 
+
+if update_plots(9) && (sys_num_1 == 6)
+    fig9 = findobj('Type','figure','Number',9);
+    if isempty(fig9)
+        fig9 = figure(9);
+        set(fig9,'WindowStyle','docked');
+    else
+        clf(fig9);
+    end
+    set(0,'CurrentFigure',fig9);
+
+    subplot(3,1,1)
+    plot(t1,log1.V_meas,'-', t1,log1.V_meas_c,'--','LineWidth',1.2);
+    grid on
+    ylabel('Voltage (pu)')
+    title('Measured Voltage')
+    legend('V_{meas}','V_{meas}^{(c)}','Location','best')
+    xlabel('Time (s)')
+
+    subplot(3,1,2)
+    plot(t1,log1.P_meas_c,'-', t1,log1.P_meas,'--','LineWidth',1.2);
+    grid on
+    ylabel('Active Power (pu)')
+    title('Measured Active Power')
+    legend('P_{meas}^{(c)}','P_{meas}','Location','best')
+    xlabel('Time (s)')
+
+    subplot(3,1,3)
+    plot(t1,log1.Q_meas_c,'-', t1,log1.Q_meas,'--','LineWidth',1.2);
+    grid on
+    ylabel('Reactive Power (pu)')
+    title('Measured Reactive Power')
+    legend('Q_{meas}^{(c)}','Q_{meas}','Location','best')
+    xlabel('Time (s)')
+
+
+end
+
+
+fig1Name = outputFolder + "\Currens_and_PCC_Voltage_dq" + fig_type;
+fig2Name = outputFolder + "\Active_and_Reactive_Power" + fig_type;
+fig3Name = outputFolder + "\Synchronization_States" + fig_type;
+fig4Name = outputFolder + "\Vref_and_Capacitor_Voltage" + fig_type;
+fig5Name = outputFolder + "\Iref_Magnitude" + fig_type;
+fig6Name = outputFolder + "\I1_and_I2_Magnitude" + fig_type;
+fig7Name = outputFolder + "\Econv_and_EconvMag" + fig_type;
+
+if export
+    exportLight(fig1,fig1Name)
+    exportLight(fig2,fig2Name)
+    exportLight(fig3,fig3Name)
+    exportLight(fig4,fig4Name)
+    exportLight(fig5,fig5Name)
+    exportLight(fig6,fig6Name)
+    exportLight(fig7, fig7Name);
+end
+
 % ============================================================
 % Fig all states: compare each state in x1 vs x2
 % Combined: three state plots per figure
 % ============================================================
-%%
 
-plotPureStates = 1;
+
 if plotPureStates
-    nStates = size(x1,1);
+    nStates1 = size(x1,1);
+    nStates2 = size(x2,1);
+    nStates = min(nStates1,nStates2);
     plotsPerFig = 3;
     nFigs = ceil(nStates / plotsPerFig);
     
     for fi = 1:nFigs
-        figid = 100 + fi;
-        figure(figid); clf; set(gcf,'WindowStyle','docked');
-        for p = 1:plotsPerFig
-            si = (fi-1)*plotsPerFig + p;
+
+        figid = findobj('Type','figure','Number',100 + fi);
+
+        if isempty(figid)
+            figid = figure(100 + fi);
+            set(figid,'WindowStyle','docked');
+        else
+            clf(figid);
+        end
+        set(0,'CurrentFigure',figid);
+
+
+        % figure(figid); clf; set(gcf,'WindowStyle','docked');
+        for p_idx = 1:plotsPerFig
+            si = (fi-1)*plotsPerFig + p_idx;
             if si > nStates, break; end
-            subplot(plotsPerFig,1,p)
+            subplot(plotsPerFig,1,p_idx)
             plot(t1, x1(si,:), '-', t2, x2(si,:), '--', 'LineWidth', 1.2)
             grid on
             title(sprintf('State %d Comparison', si))
@@ -830,3 +960,6 @@ if plotPureStates
         end
     end
 end
+
+
+toc

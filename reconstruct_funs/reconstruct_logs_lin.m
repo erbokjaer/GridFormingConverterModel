@@ -1,5 +1,131 @@
 function log = reconstruct_logs_lin(p,t,x)
 
+% PCC voltage
+
+% PCC voltage
+p.V_PCC0 = p.log0.V_PCC(:,1);
+p.Vmag0  = p.log0.V_PCC_mag(1);
+
+% Power
+p.P0 = p.log0.P_PCC(1);
+p.Q0 = p.log0.Q_PCC(1);
+
+% Current
+p.i10 = [p.x0(p.state_idx.i1d); p.x0(p.state_idx.i1q)];
+p.i20 = [p.x0(p.state_idx.i2d); p.x0(p.state_idx.i2q)];
+
+% Voltage reference
+p.Vref0     = p.log0.Vrefd(1);
+p.Vref_dq0  = p.log0.Vref(:,1);
+
+% Converter voltage
+p.Econv0 = p.log0.Econv(:,1);
+
+% Current reference (before and after limiter)
+p.Iref0      = p.log0.Iref(:,1);
+p.Iref_lim0  = p.log0.Iref_lim(:,1);
+
+% Limiter scaling
+p.scale0 = norm(p.Iref_lim0) / max(norm(p.Iref0),1e-12);
+
+% Angles / frequencies
+p.delta_conv0 = p.x0(p.state_idx.delta_c);
+p.omega_conv0 = p.x0(p.state_idx.omega_c);
+
+p.Econv0 = p.log0.Econv;
+% =========================
+% STATES
+% =========================
+p.i10  = [p.x0(p.state_idx.i1d); p.x0(p.state_idx.i1q)];
+p.i20  = [p.x0(p.state_idx.i2d); p.x0(p.state_idx.i2q)];
+
+p.it10 = [p.x0(p.state_idx.it1d); p.x0(p.state_idx.it1q)];
+p.it20 = [p.x0(p.state_idx.it2d); p.x0(p.state_idx.it2q)];
+
+p.vc0  = [p.x0(p.state_idx.vcd); p.x0(p.state_idx.vcq)];
+
+p.Pconv0 = p.log0.P_conv;
+p.Qconv0 = p.log0.Q_conv;
+p.Pgrid0 = p.log0.P_grid;
+p.Qgrid0 = p.log0.Q_grid;
+
+Vg0    = p.vg_mag(0);
+p.theta_g0 = p.vg_phase_rad(0);
+
+p.Vg0 = [Vg0*cos(p.theta_g0); Vg0*sin(p.theta_g0)];
+
+% =========================
+% FREQUENCIES / ANGLES
+% =========================
+p.delta_conv0 = p.x0(p.state_idx.delta_c);
+p.omega_conv0 = p.x0(p.state_idx.omega_c);
+
+p.delta_g0 = p.x0(p.state_idx.delta_g);
+p.omega_g0 = p.x0(p.state_idx.omega_g);
+p.V_PCC0 = p.log0.V_PCC(:,1);
+p.Vmag0  = p.log0.V_PCC_mag(1);
+
+% Power
+p.P0 = p.log0.P_PCC(1);
+p.Q0 = p.log0.Q_PCC(1);
+
+% Current
+p.i10 = [p.x0(p.state_idx.i1d); p.x0(p.state_idx.i1q)];
+p.i20 = [p.x0(p.state_idx.i2d); p.x0(p.state_idx.i2q)];
+
+% Voltage reference
+p.Vref0     = p.log0.Vrefd(1);
+p.Vref_dq0  = p.log0.Vref(:,1);
+
+% Converter voltage
+p.Econv0 = p.log0.Econv(:,1);
+
+% Current reference (before and after limiter)
+p.Iref0      = p.log0.Iref(:,1);
+p.Iref_lim0  = p.log0.Iref_lim(:,1);
+
+% Limiter scaling
+p.scale0 = norm(p.Iref_lim0) / max(norm(p.Iref0),1e-12);
+
+% Angles / frequencies
+p.delta_conv0 = p.x0(p.state_idx.delta_c);
+p.omega_conv0 = p.x0(p.state_idx.omega_c);
+
+p.Econv0 = p.log0.Econv;
+% =========================
+% STATES
+% =========================
+p.i10  = [p.x0(p.state_idx.i1d); p.x0(p.state_idx.i1q)];
+p.i20  = [p.x0(p.state_idx.i2d); p.x0(p.state_idx.i2q)];
+
+p.it10 = [p.x0(p.state_idx.it1d); p.x0(p.state_idx.it1q)];
+p.it20 = [p.x0(p.state_idx.it2d); p.x0(p.state_idx.it2q)];
+
+p.vc0  = [p.x0(p.state_idx.vcd); p.x0(p.state_idx.vcq)];
+
+p.Pconv0 = p.log0.P_conv;
+p.Qconv0 = p.log0.Q_conv;
+p.Pgrid0 = p.log0.P_grid;
+p.Qgrid0 = p.log0.Q_grid;
+
+Vg0    = p.vg_mag(0);
+p.theta_g0 = p.vg_phase_rad(0);
+
+p.Vg0 = [Vg0*cos(p.theta_g0); Vg0*sin(p.theta_g0)];
+
+% =========================
+% FREQUENCIES / ANGLES
+% =========================
+p.delta_conv0 = p.x0(p.state_idx.delta_c);
+p.omega_conv0 = p.x0(p.state_idx.omega_c);
+
+p.delta_g0 = p.x0(p.state_idx.delta_g);
+p.omega_g0 = p.x0(p.state_idx.omega_g);
+
+
+
+
+
 log = struct();
 
 % ============================================================
@@ -77,8 +203,8 @@ log.Q_PCC = p.Q0 + dQ;
 % Voltage reference (linear)
 % ============================================================
 dVref_cf = ...
-    p.Kpq * (-dQ) + ...
-    p.Kpq*p.Kvq * (-dV) + ...
+    p.Kpq * (du(3,:)-dQ) + ...
+    p.Kpq*p.Kvq * (du(1,:) - dV) + ...
     p.Kiq * dx(p.state_idx.xi_Q,:);
 
 log.Vrefd = p.Vref0 + dVref_cf;
@@ -193,7 +319,7 @@ s0 = sin(theta0);
 
 
 dVg   = Vg_mag - p.Vg_mag0;
-dth   = theta_g - p.theta_g0;
+dth   = dx(p.state_idx.delta_g,:) + theta_g - p.theta_g0;
 
 
 dv_gd = c0 .* dVg - Vg0 .* s0 .* dth;

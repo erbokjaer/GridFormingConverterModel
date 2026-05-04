@@ -1,4 +1,4 @@
-function log = reconstruct_logs(p,t,x)
+function log = reconstruct_logs_4(p,t,x)
 
 log = struct();
 
@@ -33,15 +33,15 @@ V_ref = arrayfun(p.V_ref,t);
 Q_ref = arrayfun(p.Q_ref,t);
 vg_mag       = arrayfun(p.vg_mag,t);
 vg_phase_rad = arrayfun(p.vg_phase_rad,t);
-delta_g = x(p.state_idx.delta_g,:) + vg_phase_rad;
+delta_g = vg_phase_rad;
 
 % ============================================================
 % Grid voltage events
 % ============================================================
 
 
-vg_d = vg_mag .* cos(vg_phase_rad);
-vg_q = vg_mag .* sin(vg_phase_rad);
+vg_d = vg_mag .* cos(delta_g + vg_phase_rad);
+vg_q = vg_mag .* sin(delta_g + vg_phase_rad);
 
 log.vg_d = vg_d;
 log.vg_q = vg_q;

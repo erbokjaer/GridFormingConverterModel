@@ -1,17 +1,17 @@
-function log = reconstruct_logs_split(p,t,x)
+function log = reconstruct_logs_5(p,t,x)
 
 log = struct();
 
 % ============================================================
-% State unpacking (vectorized)
-% ============================================================% ============================================================
+% State unpacking
+% ============================================================
 i1d   = x(p.state_idx.i1d,:);
 i1q   = x(p.state_idx.i1q,:);
 i2d   = x(p.state_idx.i2d,:);
 i2q   = x(p.state_idx.i2q,:);
 vcd   = x(p.state_idx.vcd,:);
 vcq   = x(p.state_idx.vcq,:);
-delta_g = x(p.state_idx.delta_g,:);
+% delta_g = x(p.state_idx.delta_g,:);
 omega_g = x(p.state_idx.omega_g,:);
 delta_conv = x(p.state_idx.delta_c,:);
 omega_conv = x(p.state_idx.omega_c,:);
@@ -29,28 +29,27 @@ vt2q  = x(p.state_idx.vt2q,:);
 xi_vd = x(p.state_idx.xi_vd,:);
 xi_vq = x(p.state_idx.xi_vq,:);
 
-% ============================================================
-% Inputs / disturbances (time-varying)
-% ============================================================
 V_ref = arrayfun(p.V_ref,t);
 Q_ref = arrayfun(p.Q_ref,t);
-Vg_mag       = arrayfun(p.vg_mag,t);
-theta_g = arrayfun(p.vg_phase_rad,t);
-
-% absolute grid angle
-delta_g_abs = delta_g + theta_g;
+vg_mag       = arrayfun(p.vg_mag,t);
+vg_phase_rad = arrayfun(p.vg_phase_rad,t);
+delta_g = 0 + vg_phase_rad;
 
 % ============================================================
-% Grid voltage
+% Grid voltage events
 % ============================================================
-vg_d = Vg_mag .* cos(delta_g_abs);
-vg_q = Vg_mag .* sin(delta_g_abs);
+
+
+% vg_d = vg_mag .* cos(vg_phase_rad);
+% vg_q = vg_mag .* sin(vg_phase_rad);
+vg_d = vg_mag .* cos(delta_g);
+vg_q = vg_mag .* sin(delta_g);
 
 log.vg_d = vg_d;
 log.vg_q = vg_q;
 
 % ============================================================
-% PCC voltage
+% Node voltage (PCC)
 % ============================================================
 ilpd = i1d - i2d - it1d - it2d;
 ilpq = i1q - i2q - it1q - it2q;
@@ -61,62 +60,38 @@ vPCCq = vcq + p.Rlp .* ilpq;
 log.V_PCC = [vPCCd; vPCCq];
 log.V_PCC_mag = sqrt(vPCCd.^2 + vPCCq.^2);
 
-% ============================================================
-% Power at PCC
-% ============================================================
-P_PCC = vPCCd .* i2d + vPCCq .* i2q;
-Q_PCC = vPCCq .* i2d - vPCCd .* i2q;
-
-log.P_PCC = P_PCC;
-log.Q_PCC = Q_PCC;
 
 % ============================================================
-% Voltage magnitude
+% Reactive power controller signals
 % ============================================================
 V_meas = sqrt(vPCCd.^2 + vPCCq.^2);
 
-
-% ============================================================
-% Q-control (your formulation)
-% ============================================================
 Q_meas = vPCCq .* i2d - vPCCd .* i2q;
-
-err_Q = Q_ref - Q_meas;
 err_v = V_ref - V_meas;
+err_q = (Q_ref - Q_meas) + p.K_vq .* err_v;
 
-Vref_cf = ...
-    + p.Kpq .* err_Q ...
-    + p.Kpq .* p.Kvq .* err_v ...
-    + p.Kiq .* xi_Q;
+log.Vrefd = p.Kp_q .* err_q + p.Ki_q .* xi_Q;
+ 
+Vrefd_c = p.Kp_q .* err_q + p.Ki_q .* xi_Q;
+Vrefq_c = 0;
 
-
-
-log.Vrefd = Vref_cf;
-
-% ============================================================
-% dq transformation of voltage reference
-% ============================================================
 c = cos(delta_conv);
 s = sin(delta_conv);
-
-Vref_d = c .* Vref_cf;
-Vref_q = s .* Vref_cf;
-
-log.Vref = [Vref_d; Vref_q];
+Vrefd  =  c.*Vrefd_c - s.*Vrefq_c;
+Vrefq = s.*Vrefd_c + c.*Vrefq_c;
 
 % ============================================================
-% Virtual impedance dynamics (for interpretation)
+% Virtual impedance current reference
 % ============================================================
-e_vd = Vref_d - vPCCd;
-e_vq = Vref_q - vPCCq;
+e_vd = Vrefd - vPCCd;
+e_vq = Vrefq - vPCCq;  
 
-d_vv_d = p.Kpv .* e_vd + p.Kiv .* xi_vd;
-d_vv_q = p.Kpv .* e_vq + p.Kiv .* xi_vq;
+d_vv_d = p.Kpv.*e_vd + p.Kiv.*xi_vd;
+d_vv_q = p.Kpv.*e_vq + p.Kiv.*xi_vq;
 
-Zv2 = sqrt(p.Rv^2 + p.Xv^2);
 
-Id_ref = (d_vv_d .* p.Rv + d_vv_q .* p.Xv) ./ Zv2;
-Iq_ref = (d_vv_q .* p.Rv - d_vv_d .* p.Xv) ./ Zv2;
+Id_ref = (d_vv_d .* p.R_v + d_vv_q .* p.X_v)./p.Z_v2;
+Iq_ref = (d_vv_q .* p.R_v - d_vv_d .* p.X_v)./p.Z_v2;
 
 % ============================================================
 % Current limit
@@ -150,10 +125,10 @@ log.i2_mag = sqrt(x(3,:).^2 + x(4,:).^2);
 err_id = Id_ref_lim - i1d;
 err_iq = Iq_ref_lim - i1q;
 
-Econv_d = p.Kpc .* err_id + p.Kic .* xi_id ...
+Econv_d = p.Kp_c .* err_id + p.Ki_c .* xi_id ...
             - omega_conv .* p.L1 .* i1q + vPCCd;
 
-Econv_q = p.Kpc .* err_iq + p.Kic .* xi_iq ...
+Econv_q = p.Kp_c .* err_iq + p.Ki_c .* xi_iq ...
             + omega_conv .* p.L1 .* i1d + vPCCq;
 
 
@@ -161,25 +136,18 @@ log.Econv = [Econv_d; Econv_q];
 log.Econv_mag = sqrt(Econv_d.^2 + Econv_q.^2);
 
 % ============================================================
-% Converter power (internal)
+% Power calculations
 % ============================================================
-P_conv = Econv_d .* i1d + Econv_q .* i1q;
-Q_conv = Econv_q .* i1d - Econv_d .* i1q;
+log.P_conv = Econv_d .* i1d + Econv_q .* i1q;
+log.Q_conv = Econv_q .* i1d - Econv_d .* i1q;
 
-log.P_conv = P_conv;
-log.Q_conv = Q_conv;
+log.P_PCC = vPCCd .* i2d + vPCCq .* i2q;
+log.Q_PCC = vPCCq .* i2d - vPCCd .* i2q;
 
-
-
-% ============================================================
-% Grid power
-% ============================================================
 log.P_grid = vg_d .* i2d + vg_q .* i2q;
 log.Q_grid = vg_q .* i2d - vg_d .* i2q;
 
-% ============================================================
 % Trap filters
-% ============================================================
 log.P_trap1 = it1d .* vt1d + it1q .* vt1q;
 log.Q_trap1 = it1q .* vt1d - it1d .* vt1q;
 
@@ -187,19 +155,18 @@ log.P_trap2 = it2d .* vt2d + it2q .* vt2q;
 log.Q_trap2 = it2q .* vt2d - it2d .* vt2q;
 
 % ============================================================
-% Angle normalization (plotting)
+% Angle shift for plotting
 % ============================================================
-shift = delta_g_abs(1);
+log.shift_val = delta_g(1);
+log.delta_g_shifted = delta_g - log.shift_val;
 
-log.delta_g = delta_g_abs;
-log.delta_g_shifted = delta_g_abs - shift;
-
+% ============================================================
+% Synchronization states
+% ============================================================
+log.delta_g = delta_g;
 log.delta_conv = delta_conv;
-
-% ============================================================
-% Frequencies
-% ============================================================
 log.omega_g = omega_g;
 log.omega_conv = omega_conv;
+
 
 end

@@ -1,4 +1,4 @@
-function dx = system_ode_4(t,x,p)
+function dx = system_ode_3(t,x,p)
 
 % ============================================================
 % Unpack states
@@ -64,14 +64,21 @@ err_q = (p.Q_ref(t) - Q_meas) + p.K_vq*err_v;
 
 dxi_Q = err_q;
 
-Vrefd = p.Kp_q*err_q + p.Ki_q*xi_Q;
+Vrefd_c = p.Kp_q*err_q + p.Ki_q*xi_Q;
+Vrefq_c = 0;
+
+c = cos(delta_c);
+s = sin(delta_c);
+
+Vrefd =  c*Vrefd_c + -s*Vrefq_c;
+Vrefq = s*Vrefd_c + c*Vrefq_c;
 
 % ============================================================
 % Virtual impedance
 % ============================================================
 
 e_vd = Vrefd - v_PCC_d;
-e_vq = 0 - v_PCC_q;  
+e_vq = Vrefq- v_PCC_q;  
 
 d_vv_d = p.Kpv*e_vd + p.Kiv*xi_vd;
 d_vv_q = p.Kpv*e_vq + p.Kiv*xi_vq;
@@ -101,35 +108,8 @@ end
 % ============================================================
 % Current controller
 % ============================================================
-% err_id = Id_ref - i1d;
-% err_iq = Iq_ref - i1q;
-% 
-% dxi_id = err_id;
-% dxi_iq = err_iq;
-% 
-% Econvd_c = p.Kp_c*err_id + p.Ki_c*xi_id ...
-%       - omega_c*p.L1*i1q + v_PCC_d;
-% 
-% Econvq_c = p.Kp_c*err_iq + p.Ki_c*xi_iq ...
-%       + omega_c*p.L1*i1d + v_PCC_q;
-% 
-% c = cos(delta_c);
-% s = sin(delta_c);
-% 
-% Econvd =  c*Econvd_c + -s*Econvq_c;
-% Econvq = s*Econvd_c + c*Econvq_c;
-
-
 err_id = Id_ref - i1d;
 err_iq = Iq_ref - i1q;
-
-c = cos(delta_c);
-s = sin(delta_c);
-
-err_id =  c*err_id + -s*err_iq;
-err_iq = s*err_id + c*err_iq;
-
-
 
 dxi_id = err_id;
 dxi_iq = err_iq;
@@ -139,9 +119,6 @@ Econvd = p.Kp_c*err_id + p.Ki_c*xi_id ...
 
 Econvq = p.Kp_c*err_iq + p.Ki_c*xi_iq ...
       + omega_c*p.L1*i1d + v_PCC_q;
-
-
-
 
 
 % ============================================================
@@ -195,13 +172,14 @@ dx = [ ...
     di1d; di1q;                 % Converter currents
     di2d; di2q;                 % Grid currents
     dvcd; dvcq;                 % Capacitor voltage
-    ddelta_g; domega_g;         % Grid angle & speed
+     domega_g;         % Grid angle & speed
     dit1d; dit1q; dvt1d; dvt1q; % Trap filter 1
     dit2d; dit2q; dvt2d; dvt2q; % Trap filter 2
     ddelta_c; domega_c;         % Converter angle & speed
     dxi_Q;                      % Reactive power integrator
     dxi_vd; dxi_vq              % Virtual impedance integrators
     dxi_id; dxi_iq;             % Current controller integrators
+    ddelta_g;
 ];
 
 

@@ -7,13 +7,20 @@ use_last_end_x_as_init = 1;
 save_last_end_x_as_init = 0;
 
 init_zero = 0;
-find_steady_state = 0;
-if 1
-    sys_ode = @system_ode_3;
-    reconstruct_fun = @reconstruct_logs_3;
-else
+find_steady_state = 1;
+sys_num = 4;
+if sys_num == 1
     sys_ode = @system_ode;
     reconstruct_fun = @reconstruct_logs;
+elseif sys_num == 2
+    sys_ode = @system_ode_split;
+    reconstruct_fun = @reconstruct_logs_split;
+elseif sys_num == 3
+    sys_ode = @system_ode_3;
+    reconstruct_fun = @reconstruct_logs_3;
+elseif sys_num == 4
+    sys_ode = @system_ode_4;
+    reconstruct_fun = @reconstruct_logs_4;
 end
 
 % update_plots = [
@@ -31,7 +38,7 @@ update_plots = 1*ones(1,7);
 % ============================================================
 % Simulation horizon
 % ============================================================
-t_end = 5000;
+t_end = 1000;
 tspan = [0 t_end];
 
 % ============================================================
@@ -70,7 +77,7 @@ Q.y1      = -0.;
 P.t_start = 10;
 P.t_dur   = 0;
 P.y0      = .0;
-P.y1      = .5;
+P.y1      = .0;
 
 % Mechanical power
 Pm.t_start = 10;
@@ -221,7 +228,7 @@ if find_steady_state && (res > 1e-7)
     end
 end
 
-x0(state_idx.delta_c) = mod(x0(state_idx.delta_c), 2*pi);
+x0(state_idx.delta_c) = mod(x0(state_idx.delta_c), 2*pi) - 2*pi;
 
 % ============================================================
 % Solver
@@ -270,10 +277,23 @@ function [t, x] = ode4_fixed(odefun, tspan, x0, p)
     x = x'; % Transpose to match MATLAB's [t,x] format
 end
 
+
+
 % ============================================================
 % Reconstruct loged signals
 % ============================================================
 log = reconstruct_fun(p,t,x);
+
+delta = -x(state_idx.delta_g,:);
+% delta = 0;
+
+i1 = dq_rotate(x(state_idx.i1d,:), x(state_idx.i1q,:), delta);
+i2 = dq_rotate(x(state_idx.i2d,:), x(state_idx.i2q,:), delta);
+V_PCC = dq_rotate(log.V_PCC(1,:), log.V_PCC(2,:), delta);
+Econv = dq_rotate(log.Econv(1,:), log.Econv(2,:), delta);
+
+
+
 
 % ============================================================
 % Fig 1: Currents and PCC Voltage
@@ -289,21 +309,21 @@ if update_plots(1)
     set(0,'CurrentFigure',fig1);
     
     subplot(3,1,1)
-    plot(t,x(state_idx.i1d,:),t,x(state_idx.i1q,:),'LineWidth',1)
+    plot(t,i1(1,:),t,i1(2,:),'LineWidth',1)
     legend('$i_{1d}$','$i_{1q}$','Location','best')
     grid on
     title('Converter Currents')
     axis padded
     
     subplot(3,1,2)
-    plot(t,x(state_idx.i2d,:),t,x(state_idx.i2q,:),'LineWidth',1)
+    plot(t,i2(1,:),t,i2(2,:),'LineWidth',1)
     legend('$i_{2d}$','$i_{2q}$','Location','best')
     grid on
     title('Grid Side Currents')
     axis padded
     
     subplot(3,1,3)
-    plot(t,log.V_PCC(1,:),t,log.V_PCC(2,:),'LineWidth',1)
+    plot(t,V_PCC(1,:),t,V_PCC(2,:),'LineWidth',1)
     legend('$v_{d}$','$v_{q}$','Location','best')
     grid on
     title('PCC Voltage')
@@ -457,7 +477,7 @@ if update_plots(7)
     set(0,'CurrentFigure',fig7);
     
     subplot(2,1,1)
-    plot(t, log.Econv(1,:), t, log.Econv(2,:), 'LineWidth', 1.2)
+    plot(t, Econv(1,:), t, Econv(2,:), 'LineWidth', 1.2)
     legend('$E_{conv,d}$','$E_{conv,q}$','Location','best')
     grid on
     title('Converter Internal Voltage (d/q)')
@@ -494,29 +514,29 @@ if export
     exportLight(fig7, fig7Name);
 end
 
-if export
-    % update all legend locations to specific locations (individual per figure) 
-    locs = {'west','east','east','southeast','southeast','southeast'}; 
-    figs = {fig1,fig2,fig3,fig4,fig5,fig6};
-    names = {fig1Name,fig2Name,fig3Name,fig4Name,fig5Name,fig6Name};
-
-    for k = 1:numel(figs)
-        fig = figs{k};
-        if isvalid(fig)
-            axs = findall(fig,'Type','axes');
-            for a = 1:numel(axs)
-                lg = legend(axs(a));
-                if ~isempty(lg) && isvalid(lg)
-                    lg.Location = locs{k};
-                end
-            end
-        end
-    end
-
-    % export all
-    for k = 1:numel(figs)
-        exportLight(figs{k}, names{k});
-    end
-end
+% if export
+%     % update all legend locations to specific locations (individual per figure) 
+%     locs = {'west','east','east','southeast','southeast','southeast'}; 
+%     figs = {fig1,fig2,fig3,fig4,fig5,fig6};
+%     names = {fig1Name,fig2Name,fig3Name,fig4Name,fig5Name,fig6Name};
+% 
+%     for k = 1:numel(figs)
+%         fig = figs{k};
+%         if isvalid(fig)
+%             axs = findall(fig,'Type','axes');
+%             for a = 1:numel(axs)
+%                 lg = legend(axs(a));
+%                 if ~isempty(lg) && isvalid(lg)
+%                     lg.Location = locs{k};
+%                 end
+%             end
+%         end
+%     end
+% 
+%     % export all
+%     for k = 1:numel(figs)
+%         exportLight(figs{k}, names{k});
+%     end
+% end
 
 toc

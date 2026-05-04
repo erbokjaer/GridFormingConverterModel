@@ -1,8 +1,14 @@
 clear
+clc
 tic
 % Add plotFunctions directory to the MATLAB path
 addpath('plotFunctions');
 addpath('helperFunctions')
+addpath("reconstruct_funs")
+addpath("ode_funs")
+addpath("parameter_scripts")
+
+
 
 % Initialize random seed for reproducibility
 rng(203829);

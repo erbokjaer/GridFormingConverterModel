@@ -90,7 +90,7 @@ f(4) = -omega_g*i2d;
 f(5) = omega_g*vcq;
 f(6) = -omega_g*vcd;
 
-f(7) = omega_g;                % delta_g dot
+f(7) = 0; % omega_g;                % delta_g dot
 f(8) = -(1/p.Jconv)*(vPCC_d*i2d + vPCC_q*i2q);
 
 f(9)  = omega_g*it1q;
@@ -105,7 +105,7 @@ f(14) = -omega_g*it2d;
 f(15) = omega_g*vt2q;
 f(16) = -omega_g*vt2d;
 
-f(17) = omega_conv;            % delta_conv dot
+f(17) = 0; % omega_conv;            % delta_conv dot
 f(18) = -(1/p.Jconv)*(vPCC_d*i2d + vPCC_q*i2q);
 
 f(19) = -(vPCC_q*i2d - vPCC_d*i2q) - p.Kvq*Vmag;
@@ -169,6 +169,6 @@ Enl = jacobian(f_full, d);
 % % ============================================================
 % % Convert to MATLAB functions (optional but recommended)
 % % ============================================================
-matlabFunction(Anl, 'File', 'A_fun', 'Vars', {x,u,d,struct2array(p)}, 'Optimize',true);
-matlabFunction(Bnl, 'File', 'B_fun', 'Vars', {x,u,d,struct2array(p)}, 'Optimize',true);
-matlabFunction(Enl, 'File', 'E_fun', 'Vars', {x,u,d,struct2array(p)}, 'Optimize',true);
+matlabFunction(Anl, 'File', 'helperFunctions/A_fun', 'Vars', {x,u,d,struct2array(p)}, 'Optimize',true);
+matlabFunction(Bnl, 'File', 'helperFunctions/B_fun', 'Vars', {x,u,d,struct2array(p)}, 'Optimize',true);
+matlabFunction(Enl, 'File', 'helperFunctions/E_fun', 'Vars', {x,u,d,struct2array(p)}, 'Optimize',true);

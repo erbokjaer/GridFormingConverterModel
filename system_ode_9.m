@@ -1,4 +1,4 @@
-function dx = system_ode_3(t,x,p)
+function dx = system_ode_9(t,x,p)
 
 % ============================================================
 % Unpack states
@@ -9,7 +9,7 @@ i2d   = x(p.state_idx.i2d);
 i2q   = x(p.state_idx.i2q);
 vcd   = x(p.state_idx.vcd);
 vcq   = x(p.state_idx.vcq);
-delta_g = x(p.state_idx.delta_g);
+% delta_g = x(p.state_idx.delta_g);
 omega_g = x(p.state_idx.omega_g);
 delta_c = x(p.state_idx.delta_c);
 omega_c = x(p.state_idx.omega_c);
@@ -36,8 +36,8 @@ vg_phase_rad = p.vg_phase_rad(t);
 
 % vg_d = vg_mag * cos(vg_phase_rad);
 % vg_q = vg_mag * sin(vg_phase_rad);
-vg_d = vg_mag * cos(delta_g + vg_phase_rad);
-vg_q = vg_mag * sin(delta_g + vg_phase_rad);
+vg_d = vg_mag * cos(vg_phase_rad);
+vg_q = vg_mag * sin(vg_phase_rad);
 
 % ============================================================
 % Node voltage
@@ -78,7 +78,7 @@ Vrefq = s*Vrefd_c + c*Vrefq_c;
 % ============================================================
 
 e_vd = Vrefd - v_PCC_d;
-e_vq = Vrefq- v_PCC_q;  
+e_vq = Vrefq - v_PCC_q;  
 
 d_vv_d = p.Kpv*e_vd + p.Kiv*xi_vd;
 d_vv_q = p.Kpv*e_vq + p.Kiv*xi_vq;
@@ -115,55 +115,83 @@ dxi_id = err_id;
 dxi_iq = err_iq;
 
 Econvd = p.Kp_c*err_id + p.Ki_c*xi_id ...
-      - omega_c*p.L1*i1q + v_PCC_d;
+      - omega_c*p.L1*i1q - p.L1*i1q + v_PCC_d;
 
 Econvq = p.Kp_c*err_iq + p.Ki_c*xi_iq ...
-      + omega_c*p.L1*i1d + v_PCC_q;
+      + omega_c*p.L1*i1d + p.L1*i1d + v_PCC_q;
+
+% Econvd = p.Kp_c*err_id + p.Ki_c*xi_id ...
+%       + v_PCC_d;
+% 
+% Econvq = p.Kp_c*err_iq + p.Ki_c*xi_iq ...
+%       + v_PCC_q;
+
+% Econvd = p.Kp_c*err_id + p.Ki_c*xi_id ...
+%       - omega_c*p.L1*i1q ;
+% 
+% Econvq = p.Kp_c*err_iq + p.Ki_c*xi_iq ...
+%       + omega_c*p.L1*i1d ;
+
+
 
 
 % ============================================================
 % Electrical dynamics
 % ============================================================
-di1d=(Econvd-v_PCC_d-p.R1*i1d+omega_g*p.L1*i1q)/p.L1;
-di1q=(Econvq-v_PCC_q-p.R1*i1q-omega_g*p.L1*i1d)/p.L1;
+di1d=(Econvd-v_PCC_d-p.R1*i1d+omega_g*p.L1*i1q + p.L1*i1q)/p.L1;
+di1q=(Econvq-v_PCC_q-p.R1*i1q-omega_g*p.L1*i1d - p.L1*i1d)/p.L1;
 
-di2d=(v_PCC_d-vg_d-p.R2*i2d+omega_g*p.L2*i2q)/p.L2;
-di2q=(v_PCC_q-vg_q-p.R2*i2q-omega_g*p.L2*i2d)/p.L2;
+di2d=(v_PCC_d-vg_d-p.R2*i2d+omega_g*p.L2*i2q + p.L2*i2q)/p.L2;
+di2q=(v_PCC_q-vg_q-p.R2*i2q-omega_g*p.L2*i2d - p.L2*i2d)/p.L2;
 
 % ============================================================
 % Swing equations
 % ============================================================
 P_PCC = v_PCC_d*i2d + v_PCC_q*i2q;
 
+% domega_c = (p.P_ref(t) - 0.9*delta_c - P_PCC - p.D_conv*(omega_c-p.w_nom))/p.J_conv;
 domega_c = (p.P_ref(t) - P_PCC - p.D_conv*(omega_c-p.w_nom))/p.J_conv;
-% domega_c = (p.P_ref(t) - P_PCC - p.D_conv*(omega_c-omega_g))/p.J_conv;
-ddelta_c = omega_c - p.w_nom;
-
+% ddelta_c = omega_c - p.w_nom;
+ddelta_c = omega_c - omega_g;
 P_e = vg_d*i2d + vg_q*i2q;
 
 domega_g=(-p.Pm_cont(t) + P_e - p.D_g*(omega_g-p.w_nom))/p.J_g;
-ddelta_g=omega_g - p.w_nom;
+% domega_g=(-p.Pm_cont(t) + P_e - 0.9*delta_g - p.D_g*(omega_g-p.w_nom))/p.J_g;
+% ddelta_g=omega_g - p.w_nom;
+
+
+% domega_c = (p.P_ref(t) - 0.9*delta_c - P_PCC - p.D_conv*(omega_c-p.w_nom))/p.J_conv;
+domega_c = (p.P_ref(t) - P_PCC - p.D_conv*(omega_c))/p.J_conv;
+% ddelta_c = omega_c - p.w_nom;
+ddelta_c = omega_c - omega_g;
+P_e = vg_d*i2d + vg_q*i2q;
+
+domega_g=(-p.Pm_cont(t) + P_e - p.D_g*(omega_g))/p.J_g;
+% domega_g=(-p.Pm_cont(t) + P_e - 0.9*delta_g - p.D_g*(omega_g-p.w_nom))/p.J_g;
+% ddelta_g=omega_g - p.w_nom;
+
+
 
 % ============================================================
 % Low-pass filter
 % ============================================================
-dvcd=(ilpd+omega_g*p.Clp*vcq)/p.Clp;
-dvcq=(ilpq-omega_g*p.Clp*vcd)/p.Clp;
+dvcd=(ilpd+omega_g*p.Clp*vcq + p.Clp*vcq)/p.Clp;
+dvcq=(ilpq-omega_g*p.Clp*vcd - p.Clp*vcd)/p.Clp;
 
 % ============================================================
 % Trap filters
 % ============================================================
-dit1d=(v_PCC_d-vt1d-p.Rt1*it1d+omega_g*p.Lt1*it1q)/p.Lt1;
-dit1q=(v_PCC_q-vt1q-p.Rt1*it1q-omega_g*p.Lt1*it1d)/p.Lt1;
+dit1d=(v_PCC_d-vt1d-p.Rt1*it1d+omega_g*p.Lt1*it1q + p.Lt1*it1q)/p.Lt1;
+dit1q=(v_PCC_q-vt1q-p.Rt1*it1q-omega_g*p.Lt1*it1d - p.Lt1*it1d)/p.Lt1;
 
-dvt1d=(it1d+omega_g*p.Ct1*vt1q)/p.Ct1;
-dvt1q=(it1q-omega_g*p.Ct1*vt1d)/p.Ct1;
+dvt1d=(it1d+omega_g*p.Ct1*vt1q + p.Ct1*vt1q)/p.Ct1;
+dvt1q=(it1q-omega_g*p.Ct1*vt1d - p.Ct1*vt1d)/p.Ct1;
 
-dit2d=(v_PCC_d-vt2d-p.Rt2*it2d+omega_g*p.Lt2*it2q)/p.Lt2;
-dit2q=(v_PCC_q-vt2q-p.Rt2*it2q-omega_g*p.Lt2*it2d)/p.Lt2;
+dit2d=(v_PCC_d-vt2d-p.Rt2*it2d+omega_g*p.Lt2*it2q + p.Lt2*it2q)/p.Lt2;
+dit2q=(v_PCC_q-vt2q-p.Rt2*it2q-omega_g*p.Lt2*it2d - p.Lt2*it2d)/p.Lt2;
 
-dvt2d=(it2d+omega_g*p.Ct2*vt2q)/p.Ct2;
-dvt2q=(it2q-omega_g*p.Ct2*vt2d)/p.Ct2;
+dvt2d=(it2d+omega_g*p.Ct2*vt2q + p.Ct2*vt2q)/p.Ct2;
+dvt2q=(it2q-omega_g*p.Ct2*vt2d - p.Ct2*vt2d)/p.Ct2;
 
 % ============================================================
 % State vector
@@ -172,7 +200,7 @@ dx = [ ...
     di1d; di1q;                 % Converter currents
     di2d; di2q;                 % Grid currents
     dvcd; dvcq;                 % Capacitor voltage
-    ddelta_g; domega_g;         % Grid angle & speed
+    domega_g;         % Grid angle & speed
     dit1d; dit1q; dvt1d; dvt1q; % Trap filter 1
     dit2d; dit2q; dvt2d; dvt2q; % Trap filter 2
     ddelta_c; domega_c;         % Converter angle & speed

@@ -1,4 +1,4 @@
-function dx = system_ode(t,x,p)
+function dx = system_ode_4(t,x,p)
 
 % ============================================================
 % Unpack states
@@ -9,7 +9,7 @@ i2d   = x(p.state_idx.i2d);
 i2q   = x(p.state_idx.i2q);
 vcd   = x(p.state_idx.vcd);
 vcq   = x(p.state_idx.vcq);
-delta_g = x(p.state_idx.delta_g);
+% delta_g = x(p.state_idx.delta_g);
 omega_g = x(p.state_idx.omega_g);
 delta_c = x(p.state_idx.delta_c);
 omega_c = x(p.state_idx.omega_c);
@@ -34,8 +34,10 @@ xi_vq = x(p.state_idx.xi_vq);
 vg_mag       = p.vg_mag(t);
 vg_phase_rad = p.vg_phase_rad(t);
 
-vg_d = vg_mag * cos(delta_g + vg_phase_rad);
-vg_q = vg_mag * sin(delta_g + vg_phase_rad);
+% vg_d = vg_mag * cos(vg_phase_rad);
+% vg_q = vg_mag * sin(vg_phase_rad);
+vg_d = vg_mag * cos(vg_phase_rad);
+vg_q = vg_mag * sin(vg_phase_rad);
 
 % ============================================================
 % Node voltage
@@ -64,8 +66,11 @@ i2q_c = -s*i2d + c*i2q;
 % ============================================================
 % Reactive power control
 % ============================================================
-V_meas = sqrt(v_PCC_d_c^2 + v_PCC_q_c^2);
-Q_meas = v_PCC_q_c*i2d_c - v_PCC_d_c*i2q_c;
+% V_meas = sqrt(v_PCC_d_c^2 + v_PCC_q_c^2);
+% Q_meas = v_PCC_q_c*i2d_c - v_PCC_d_c*i2q_c;
+
+V_meas = sqrt(v_PCC_d^2 + v_PCC_q^2);
+Q_meas = v_PCC_q*i2d - v_PCC_d*i2q;
 
 err_v = p.V_ref(t) - V_meas;
 err_q = (p.Q_ref(t) - Q_meas) + p.K_vq*err_v;
@@ -131,15 +136,17 @@ di2q=(v_PCC_q-vg_q-p.R2*i2q-omega_g*p.L2*i2d)/p.L2;
 % ============================================================
 % Swing equations
 % ============================================================
-P_PCC = v_PCC_d_c*i2d_c + v_PCC_q_c*i2q_c;
+% P_PCC = v_PCC_d_c*i2d_c + v_PCC_q_c*i2q_c;
+P_PCC = v_PCC_d*i2d + v_PCC_q*i2q;
 
 domega_c = (p.P_ref(t) - P_PCC - p.D_conv*(omega_c-p.w_nom))/p.J_conv;
-ddelta_c = omega_c - p.w_nom;
+ddelta_c = omega_c - omega_g;
 
 P_e = vg_d*i2d + vg_q*i2q;
 
 domega_g=(-p.Pm_cont(t) + P_e - p.D_g*(omega_g-p.w_nom))/p.J_g;
-ddelta_g=omega_g - p.w_nom;
+
+
 
 % ============================================================
 % Low-pass filter
@@ -169,7 +176,7 @@ dx = [ ...
     di1d; di1q;                 % Converter currents
     di2d; di2q;                 % Grid currents
     dvcd; dvcq;                 % Capacitor voltage
-    ddelta_g; domega_g;         % Grid angle & speed
+    domega_g;         % Grid angle & speed
     dit1d; dit1q; dvt1d; dvt1q; % Trap filter 1
     dit2d; dit2q; dvt2d; dvt2q; % Trap filter 2
     ddelta_c; domega_c;         % Converter angle & speed

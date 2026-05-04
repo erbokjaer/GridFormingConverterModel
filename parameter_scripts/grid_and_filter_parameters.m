@@ -51,3 +51,6 @@ Rt1 = 1.04e-3 / Z_base;
 Lt2 = 5.05e-6 / L_base; 
 Ct2 = 200e-6 / C_base;
 Rt2 = 2.0e-3 / Z_base;
+
+Jg = 1;
+Dg = 70;
